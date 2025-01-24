@@ -1,3 +1,3 @@
-# RayPI
+# rhttp
 
 Simple REST client
