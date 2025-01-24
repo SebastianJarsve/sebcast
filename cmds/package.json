@@ -3,7 +3,7 @@
   "name": "cmds",
   "title": "Useful commands",
   "description": "",
-  "icon": "ob-icon.svg",
+  "icon": "extension_icon.png",
   "author": "SebastianJarsve",
   "license": "MIT",
   "commands": [
