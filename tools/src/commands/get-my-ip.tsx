@@ -107,7 +107,7 @@ function GetMyIp() {
   );
 }
 
-GetMyIp.displayName = "Get my API";
+GetMyIp.displayName = "Get my IP";
 GetMyIp.description = "Fetches local and external IP addresses";
 GetMyIp.icon = Icon.Wifi;
 
