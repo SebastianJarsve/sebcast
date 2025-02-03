@@ -7,33 +7,19 @@ A collection of small convenient dev tools
 A new tool should be added in a single file in `./src/commands/`. This is the template to use:
 
 ```ts
-import { Action, ActionPanel, Clipboard, Form, Icon, showHUD, showToast } from "@raycast/api";
+import { Form, Icon } from "@raycast/api";
 import { useState } from "react";
 
 function CommandTemplate() {
-  const [url, setUrl] = useState("");
   const [data, setData] = useState("");
 
   return (
-    <Form
-      actions={
-        <ActionPanel>
-          <Action
-            title="Extract params (json)"
-            onAction={async () => {
-              await Clipboard.copy(data);
-              showHUD("Copied params (json)");
-            }}
-          />
-        </ActionPanel>
-      }
-    >
+    <Form>
       <Form.Description text={`Your string is ${data.length} character${data.length !== 1}s long.`} />
       <Form.TextArea id="string" title="String" placeholder="String..." value={data} onChange={setData} />
     </Form>
   );
 }
-
 CommandTemplate.displayName = "Get string length";
 CommandTemplate.description = "Gets the length of a given string";
 CommandTemplate.icon = Icon.Text;
