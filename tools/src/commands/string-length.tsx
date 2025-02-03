@@ -6,7 +6,7 @@ function StringLength() {
 
   return (
     <Form>
-      <Form.Description text={`Your string is ${data.length} character${data.length !== 1}s long.`} />
+      <Form.Description text={`Your string is ${data.length} character${data.length !== 1 ? "s" : ""} long.`} />
       <Form.TextArea id="string" title="String" placeholder="String..." value={data} onChange={setData} />
     </Form>
   );
