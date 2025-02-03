@@ -1,16 +1,7 @@
-# tools
-
-A collection of small convenient dev tools
-
-## Add tool
-
-A new tool should be added in a single file in `./src/commands/`. This is the template to use:
-
-```ts
 import { Action, ActionPanel, Clipboard, Form, Icon, showHUD, showToast } from "@raycast/api";
 import { useState } from "react";
 
-function CommandTemplate() {
+function StringLength() {
   const [url, setUrl] = useState("");
   const [data, setData] = useState("");
 
@@ -34,11 +25,8 @@ function CommandTemplate() {
   );
 }
 
-CommandTemplate.displayName = "Get string length";
-CommandTemplate.description = "Gets the length of a given string";
-CommandTemplate.icon = Icon.Text;
+StringLength.displayName = "Get string length";
+StringLength.description = "Gets the length of a given string";
+StringLength.icon = Icon.Text;
 
-export default CommandTemplate;
-```
-
-Note it's important to set displayName, description and Icon.
+export default StringLength;
