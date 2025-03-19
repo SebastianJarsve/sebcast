@@ -12,11 +12,18 @@
       "title": "Tools",
       "description": "List dev tool collection",
       "mode": "view"
+    },
+    {
+      "name": "ts-to-zod",
+      "title": "Ts to Zod",
+      "description": "Convert TypeScript to Zod schema",
+      "mode": "view"
     }
   ],
   "dependencies": {
     "@raycast/api": "^1.87.4",
-    "@raycast/utils": "^1.18.1"
+    "@raycast/utils": "^1.18.1",
+    "ts-to-zod": "^3.15.0"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^1.0.11",
