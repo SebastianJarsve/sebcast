@@ -21,6 +21,7 @@ import { CookiesList } from "./cookies";
 import { RequestForm } from "./request-form";
 import { buildHeadersObject, runRequest } from "../utils";
 import { AxiosResponseView } from "./response";
+import { RawStorageView } from "./view-raw-storage";
 
 function AllRequests({ store }: { store: Store }) {
   const { collections, cookies, currentCollectionId } = store;
@@ -41,6 +42,7 @@ function AllRequests({ store }: { store: Store }) {
       currentCollectionId.setValue(newId);
       navigation.pop();
     } else {
+      console.log(newCollection);
       const newCollections = collections.value?.map((c) => {
         if (c.id === newCollection.id && newCollection.id !== undefined) return { ...c, ...newCollection };
         return c;
@@ -85,6 +87,7 @@ function AllRequests({ store }: { store: Store }) {
             />
           }
         />
+        <Action.Push title="View raw store" icon={Icon.Code} target={<RawStorageView store={store} />} />
         <ActionPanel.Submenu icon={"🍪"} title="Cookies">
           <Action.Push title="View cookies" icon={Icon.Eye} target={<CookiesList store={store} />} />
           <Action

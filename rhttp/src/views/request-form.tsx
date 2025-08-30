@@ -61,6 +61,25 @@ function RequestForm({
     }
   }
 
+  function handleHeaderState(type: string, index: number, payload: string) {
+    const newHeaders: Request["headers"] = [...headers];
+    newHeaders[index][type as keyof Request["headers"][number]] = payload;
+    setHeaders(newHeaders);
+  }
+
+  function handleSearchTextChange(index: number, payload: string) {
+    handleHeaderState("key", index, "");
+    const newHeaderSearchTexts = [...headerSearchTexts];
+    payload = payload.trim();
+    newHeaderSearchTexts[index] = payload === "" ? undefined : payload;
+    setHeaderSearchTexts(newHeaderSearchTexts);
+  }
+
+  function filterHeaderOptions(index: number, option: string) {
+    const search = headerSearchTexts[index];
+    return search === undefined || option.toLowerCase().includes(search);
+  }
+
   return (
     <Form
       navigationTitle={collection?.title}
@@ -72,6 +91,15 @@ function RequestForm({
             shortcut={Keyboard.Shortcut.Common.Open}
             onSubmit={async (data: Request) => {
               const resp = await runRequest({ ...data, headers }, store);
+              if (resp?.data === undefined) {
+                console.log("UNDEFINED");
+                console.log("UNDEFINED");
+                console.log("UNDEFINED");
+                console.log("UNDEFINED");
+                console.log("UNDEFINED");
+                console.log("UNDEFINED");
+                console.log("UNDEFINED");
+              }
               if (resp) push(<AxiosResponseView response={resp!} store={store} />);
             }}
           />
@@ -181,19 +209,9 @@ function RequestForm({
               <Form.Dropdown
                 id={`header-key-${index}`}
                 title="Key"
-                onChange={(k) => {
-                  const newHeaders = [...headers];
-                  newHeaders[index].key = k;
-                  setHeaders(newHeaders);
-                }}
-                value={key ?? ""}
-                onFocus={() => setActiveHeader(key)}
-                onSearchTextChange={(text) => {
-                  const newHeaderSearchTexts = [...headerSearchTexts];
-                  const payload = text.trim();
-                  newHeaderSearchTexts[index] = payload === "" ? undefined : payload;
-                  setHeaderSearchTexts(newHeaderSearchTexts);
-                }}
+                onChange={(key) => handleHeaderState("key", index, key)}
+                value={headers[index].key}
+                onSearchTextChange={(text) => handleSearchTextChange(index, text)}
               >
                 {headerSearchTexts[index] !== undefined && (
                   <Form.Dropdown.Item
@@ -203,10 +221,7 @@ function RequestForm({
                   />
                 )}
                 {headerKeys
-                  .filter((option) => {
-                    const search = headerSearchTexts[index];
-                    return search === undefined || option.toLowerCase().includes(search.toLowerCase());
-                  })
+                  .filter((option) => filterHeaderOptions(index, option))
                   .map((key, idx) => (
                     <Form.Dropdown.Item key={`header-${idx}-key`} value={key} title={key} />
                   ))}

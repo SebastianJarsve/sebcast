@@ -15,10 +15,13 @@ function CollectionForm({
 }) {
   const [activeHeader, setActiveHeader] = useState<string | undefined>();
   const [headerSearchTexts, setHeaderSearchTexts] = useState<Array<string | undefined>>([]);
+
   const [headers, setHeaders] = useState<Collection["headers"]>(collection.headers ?? []);
+  console.log(JSON.stringify(collection, null, 2));
 
   async function saveCollection(c: PartialBy<Collection, "id">) {
     onSubmit({ ...collection, ...c, headers });
+    console.log("New Headers", headers);
     showToast({ title: "Collection saved" });
   }
 
@@ -79,9 +82,10 @@ function CollectionForm({
                 onChange={(k) => {
                   const newHeaders = [...headers];
                   newHeaders[index].key = k;
+                  console.log("newHeaders", newHeaders);
                   setHeaders(newHeaders);
                 }}
-                value={key ?? ""}
+                value={headers[index].value ?? ""}
                 onFocus={() => setActiveHeader(key)}
                 onSearchTextChange={(text) => {
                   const newHeaderSearchTexts = [...headerSearchTexts];
@@ -92,9 +96,9 @@ function CollectionForm({
               >
                 {headerSearchTexts[index] !== undefined && (
                   <Form.Dropdown.Item
-                    key={`header-${-1}-key`}
-                    value={headerSearchTexts[index]!}
-                    title={headerSearchTexts[index]!}
+                    key={`header-test-key`}
+                    value={headerSearchTexts[index]}
+                    title={headerSearchTexts[index]}
                   />
                 )}
                 {headerKeys

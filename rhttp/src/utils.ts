@@ -3,6 +3,7 @@ import { Store } from ".";
 import { Collection, CookieOptions, Cookies, Headers, HeadersObject, Methods, ParsedCookie, Request } from "./types";
 import Axios from "axios";
 import { MAX_JSON_LENGTH } from "./constants";
+import https from 'https'
 
 export function parseCookie(rawCookie: string) {
   if (!rawCookie.includes("=")) throw new Error("Invalid cookie format");
@@ -66,7 +67,7 @@ export function buildHeadersObject(...headerArrays: Headers[]) {
 export function mdJson(object: unknown) {
   try {
     const code = JSON.stringify(object, null, 2);
-    if (code.length > MAX_JSON_LENGTH) return JSON.stringify(object); // If code is very large, return regular text instead of a codeblock
+    // if (code.length > MAX_JSON_LENGTH) return JSON.stringify(object); // If code is very large, return regular text instead of a codeblock
     return "```json\n" + code.slice(0, Math.min(MAX_JSON_LENGTH, code.length)) + "\n```\n";
   } catch {
     return "undefined";
@@ -109,7 +110,13 @@ export async function runRequest(req: Request, store: Store) {
   }
 
   try {
-    const response = await axios.request(config);
+    const response = await axios.request({
+      ...config,
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false,
+      }),
+    });
+    console.log(response);
     return response;
   } catch (e) {
     const err = e as AxiosError;
