@@ -1,154 +1,129 @@
 import { Color } from "@raycast/api";
 import { z } from "zod";
+import { METHODS } from "./constants";
 
-enum Methods {
-  GET = "GET",
-  POST = "POST",
-  PUT = "PUT",
-  PATCH = "PATCH",
-  DELETE = "DELETE",
-  GRAPHQL = "GRAPHQL",
-}
+/** Zod schema for validating that a string is one of the defined methods. */
+export const methodSchema = z.enum(Object.keys(METHODS) as [keyof typeof METHODS, ...(keyof typeof METHODS)[]]);
+export type Method = z.infer<typeof methodSchema>;
 
-enum MethodColor {
-  GET = Color.Blue,
-  POST = Color.Green,
-  PUT = Color.Purple,
-  PATCH = Color.Yellow,
-  DELETE = Color.Red,
-  GRAPHQL = Color.Orange,
-}
+// --- GENERIC UTILITY TYPES ---
 
-type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+/** A utility type that makes specific keys (K) of a type (T) optional. */
+export type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 
-type CookieOptions = {
-  maxAge: number;
-  expires?: Date;
-  httpOnly: boolean;
-  path: string;
-  domain: string;
-  secure?: boolean;
-  sameSite?: boolean | "lax" | "strict" | "none";
-};
-type ParsedCookie = {
-  cookieName: string;
-  cookieValue: string;
-  options: CookieOptions;
-};
-type Cookies = {
-  [key: string]: ParsedCookie[];
-};
+// --- REUSABLE ZOD SCHEMAS ---
 
-export const headerKeys = [
-  "A-IM",
-  "Accept",
-  "Accept-Charset",
-  "Accept-Encoding",
-  "Accept-Language",
-  "Accept-Datetime",
-  "Access-Control-Request-Method",
-  "Access-Control-Request-Headers",
-  "Authorization",
-  "Cache-Control",
-  "Connection",
-  "Content-Length",
-  "Content-Type",
-  "Cookie",
-  "Date",
-  "Expect",
-  "Forwarded",
-  "From",
-  "Host",
-  "If-Match",
-  "If-Modified-Since",
-  "If-None-Match",
-  "If-Range",
-  "If-Unmodified-Since",
-  "Max-Forwards",
-  "Origin",
-  "Pragma",
-  "Proxy-Authorization",
-  "Range",
-  "Referer",
-  "TE",
-  "User-Agent",
-  "Upgrade",
-  "Via",
-  "Warning",
-  "Dnt",
-  "X-Requested-With",
-  "X-CSRF-Token",
-] as const;
+/**
+ * A reusable Zod schema for validating that a string contains valid JSON.
+ * It uses `superRefine` for precise error messages.
+ */
+const jsonStringSchema = z
+  .string()
+  .optional()
+  .superRefine((value, ctx) => {
+    if (!value) return; // Allows for an empty or undefined string.
+    try {
+      JSON.parse(value);
+    } catch (e) {
+      ctx.addIssue({ code: "custom", message: "Must be a valid JSON string" });
+    }
+  });
 
-export const headerKeysEnum = z.enum(headerKeys);
+/** Schema for a single HTTP header (key/value pair). */
+export const headerSchema = z.object({
+  key: z.string().min(1, "Header key cannot be empty"),
+  value: z.string(),
+});
 
-export const headersSchema = z.array(z.object({ key: z.string().optional(), value: z.string() })).default([]);
+/** Schema for an array of HTTP headers. */
+export const headersSchema = z.array(headerSchema).default([]);
 export type Headers = z.infer<typeof headersSchema>;
+
+/** Schema for headers as a key-value object. */
 export const headersObjectSchema = z.record(z.string(), z.string());
 export type HeadersObject = z.infer<typeof headersObjectSchema>;
 
-const requestSchema = z.object({
-  id: z.string().uuid(),
-  method: z.nativeEnum(Methods),
-  title: z.string().optional(),
-  url: z.string().url(),
-  body: z
-    .string()
-    .optional()
-    .superRefine((value, ctx) => {
-      if (value === undefined) return;
-      try {
-        JSON.stringify(value);
-      } catch (e) {
-        ctx.addIssue({ code: "custom", message: "Must be a valid json string" });
-      }
-    }),
-  params: z
-    .string()
-    .optional()
-    .superRefine((value, ctx) => {
-      if (value === undefined) return;
-      try {
-        JSON.stringify(value);
-      } catch (e) {
-        ctx.addIssue({ code: "custom", message: "Must be a valid json string" });
-      }
-    }),
+// --- COOKIE SCHEMAS ---
 
-  variables: z
-    .string()
-    .optional()
-    .refine((val) => {
-      try {
-        if (val === undefined) return false;
-        JSON.parse(val);
-        return true;
-      } catch (e) {
-        return false;
-      }
-    }),
-  query: z.string().optional(),
-
-  headers: headersSchema,
+/** Schema for cookie options. Reflects real-world usage where some fields are often omitted. */
+export const cookieOptionsSchema = z.object({
+  maxAge: z.number().optional(),
+  path: z.string().optional(),
+  domain: z.string().optional(),
+  expires: z.date().optional(),
+  httpOnly: z.boolean().default(false),
+  secure: z.boolean().optional(),
+  sameSite: z.union([z.boolean(), z.enum(["lax", "strict", "none"])]).optional(),
 });
+export type CookieOptions = z.infer<typeof cookieOptionsSchema>;
 
-const newRequestSchema = requestSchema.omit({ id: true });
+/** Schema for a single, parsed cookie with its name, value, and options. */
+export const parsedCookieSchema = z.object({
+  cookieName: z.string(),
+  cookieValue: z.string(),
+  options: cookieOptionsSchema,
+});
+export type ParsedCookie = z.infer<typeof parsedCookieSchema>;
 
-const collectionSchema = z.object({
+/** Schema for the entire cookie store, grouped by a key (typically the domain). */
+export const cookiesSchema = z.record(z.string(), z.array(parsedCookieSchema));
+export type Cookies = z.infer<typeof cookiesSchema>;
+
+// --- CORE DATA SCHEMAS ---
+
+/** Schema for a complete request. */
+export const requestSchema = z.object({
+  id: z.string().uuid(),
+  method: methodSchema,
+  title: z.string().optional(),
+  url: z.union([
+    z.string().url("Invalid URL"),
+    z.string().startsWith("/", { message: "Relative paths must start with /" }),
+  ]),
+  headers: headersSchema,
+  body: jsonStringSchema,
+  params: jsonStringSchema,
+  variables: jsonStringSchema,
+  query: z.string().optional(),
+});
+export type Request = z.infer<typeof requestSchema>;
+
+/** Schema for creating a new request (omits `id`). */
+export const newRequestSchema = requestSchema.omit({ id: true });
+export type NewRequest = z.infer<typeof newRequestSchema>;
+
+/** Schema for a collection of requests. */
+export const collectionSchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
-  baseUrl: z.string().url(),
+  baseUrl: z.string().url("Invalid base URL").optional(),
   requests: z.array(requestSchema),
   headers: headersSchema,
 });
+export type Collection = z.infer<typeof collectionSchema>;
 
-const newCollectionSchema = collectionSchema;
+/** Schema for creating a new collection (omits `id`). */
+export const newCollectionSchema = collectionSchema.omit({ id: true });
+export type NewCollection = z.infer<typeof newCollectionSchema>;
 
-type Request = z.infer<typeof requestSchema>;
-type Collection = z.infer<typeof collectionSchema>;
-type NewRequest = z.infer<typeof newRequestSchema>;
-type NewCollection = z.infer<typeof newCollectionSchema>;
+// --- SECRETS ---
+export const secretSchema = z
+  .object({
+    id: z.string().uuid(),
+    key: z.string().min(1),
+    value: z.string(),
+    scope: z.enum(["global", "collection"]),
+    collectionId: z.string().uuid().optional(), // Only present for collection-scoped secrets
+  })
+  .refine(
+    (data) => {
+      // If scope is 'collection', collectionId must be present.
+      return data.scope !== "collection" || typeof data.collectionId === "string";
+    },
+    { message: "Collection ID is required for collection-scoped secrets" },
+  );
 
-export type { Collection, Color, CookieOptions, Cookies, NewCollection, NewRequest, ParsedCookie, PartialBy, Request };
+export type Secret = z.infer<typeof secretSchema>;
 
-export { MethodColor, Methods };
+// The secrets store will now be an array of these objects
+export const secretsSchema = z.array(secretSchema);

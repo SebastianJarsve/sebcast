@@ -1,251 +1,248 @@
-import { Action, ActionPanel, Form, Icon, Keyboard, showToast, useNavigation } from "@raycast/api";
-import { randomUUID } from "crypto";
-import { Fragment, useMemo, useState } from "react";
-import { Store } from "..";
-import { headerKeys, HeadersObject, MethodColor, Methods, NewRequest, PartialBy, Request } from "../types";
-import { CookiesList } from "./cookies";
+// RequestForm.tsx
+import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
+import { useEffect, useRef, useState } from "react";
+import { NewRequest, Request, Headers, Method } from "../types";
+import { $collections, $currentCollection, createRequest, updateRequest, useAtom } from "../store";
+import { METHODS } from "../constants"; // Assuming you have a constants file for METHODS etc.
+import { HeadersEditor } from "../headers-editor";
+import { z } from "zod";
+import { ErrorDetail } from "./error-view";
 import { runRequest } from "../utils";
-import { AxiosResponseView } from "./response";
+import { ResponseView } from "./response";
+import axios from "axios";
 
-function RequestForm({
-  store,
-  req,
-}: {
-  store: Store;
-  req: PartialBy<Request, "id">;
-  collectionHeaders?: HeadersObject;
-}) {
-  const { cookies, currentCollectionId, collections } = store;
-  const collection = useMemo(() => {
-    return collections.value?.find((c) => c.id === currentCollectionId.value);
-  }, [currentCollectionId]);
-  const { push } = useNavigation();
-  const [method, setMethod] = useState<Request["method"]>(req.method);
-  const [headerSearchTexts, setHeaderSearchTexts] = useState<Array<string | undefined>>([]);
-  const [headers, setHeaders] = useState<Request["headers"]>(req.headers || []);
+interface RequestFormProps {
+  collectionId: string;
+  requestId?: string;
+}
 
-  const [activeHeader, setActiveHeader] = useState<string | undefined>();
+export function RequestForm({ collectionId, requestId }: RequestFormProps) {
+  const { pop, push } = useNavigation();
+  const { value: collections } = useAtom($collections);
+  const { value: currentCollection } = useAtom($currentCollection);
 
-  function updateRequest(r: Request) {
-    if (!collections) return;
-    const newCollections = collections.value?.map((c) => {
-      if (c.id === currentCollectionId.value) {
-        return {
-          ...c,
-          requests: c.requests.map((old) => {
-            if (old.id === r.id) return { ...r, headers };
-            return old;
-          }),
-        };
+  // Find the parent collection and the specific request to edit (if any)
+  const [request] = useState<Request | NewRequest | undefined>(() => {
+    if (requestId) {
+      const collection = collections.find((c) => c.id === collectionId);
+      return collection?.requests.find((r) => r.id === requestId);
+    }
+    return { method: "GET", url: "", headers: [] }; // Blank slate for a new request
+  });
+
+  // Local state for form fields, initialized from the request data
+  const [method, setMethod] = useState(request?.method);
+  const [headers, setHeaders] = useState<Headers>(request?.headers ?? []);
+  // State to track the currently focused header index ---
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  // Used to focus the field when a header field is removed.
+  const titleFieldRef = useRef<Form.TextField>(null);
+  // Create a ref to hold an array of refs for each header field
+  const headerFieldRefs = useRef<(Form.Dropdown | null)[]>([]);
+
+  useEffect(() => {
+    // This effect runs only when the number of headers changes
+    headerFieldRefs.current = headerFieldRefs.current.slice(0, headers.length);
+  }, [headers]);
+
+  async function handleSave(values: Omit<Request, "id" | "headers">) {
+    try {
+      const requestData = { ...values, headers };
+
+      if (requestId) {
+        await updateRequest(collectionId, requestId, requestData);
+        showToast({ title: "Request Updated" });
+      } else {
+        await createRequest(collectionId, requestData as NewRequest);
+        showToast({ title: "Request Created" });
       }
-      return c;
-    });
-    if (newCollections) collections.setValue(newCollections);
-  }
-
-  async function saveRequest(r: NewRequest) {
-    showToast({ title: "Saved request" });
-    if (req.id !== undefined) {
-      // Update request
-      updateRequest({ ...r, id: req.id! });
-    } else {
-      // Create new request
-      if (!collections) return;
-      const newCollections = collections.value?.map((c) => {
-        if (c.id === currentCollectionId.value) {
-          return { ...c, requests: [...c.requests, { ...r, headers, id: randomUUID() }] };
-        }
-        return c;
-      });
-      if (newCollections) collections.setValue(newCollections);
+      pop();
+    } catch (error) {
+      // This block runs if Zod's .parse() throws an error.
+      if (error instanceof z.ZodError) {
+        // We can format a user-friendly message from the Zod error.
+        push(<ErrorDetail error={error} />);
+      } else {
+        // Handle other unexpected errors.
+        showToast({
+          style: Toast.Style.Failure,
+          title: "An unknown error occurred",
+        });
+      }
     }
   }
 
-  function handleHeaderState(type: string, index: number, payload: string) {
-    const newHeaders: Request["headers"] = [...headers];
-    newHeaders[index][type as keyof Request["headers"][number]] = payload;
-    setHeaders(newHeaders);
-  }
+  async function handleRun(request: Omit<Request, "id" | "headers">) {
+    console.log(request);
+    // 1. Show a loading toast
+    const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
+    try {
+      // 2. Call our utility function
+      if (!currentCollection) return;
+      const response = await runRequest({ ...request, headers } as Omit<Request, "id">, currentCollection);
+      console.log(response);
 
-  function handleSearchTextChange(index: number, payload: string) {
-    handleHeaderState("key", index, "");
-    const newHeaderSearchTexts = [...headerSearchTexts];
-    payload = payload.trim();
-    newHeaderSearchTexts[index] = payload === "" ? undefined : payload;
-    setHeaderSearchTexts(newHeaderSearchTexts);
-  }
-
-  function filterHeaderOptions(index: number, option: string) {
-    const search = headerSearchTexts[index];
-    return search === undefined || option.toLowerCase().includes(search);
+      // 3. On success, hide the toast and push the response view
+      toast.hide();
+      if (!response) throw response;
+      push(
+        <ResponseView
+          response={{
+            requestMethod: request.method,
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers as Record<string, string>,
+            body: response.data,
+          }}
+        />,
+      );
+    } catch (error) {
+      console.warn("HAS ERROR", error);
+      // Check if it's an Axios error with a response from the server
+      if (axios.isAxiosError(error) && error.response) {
+        // This is an API error (e.g., 404, 500). Show the detailed view.
+        toast.hide();
+        push(
+          <ResponseView
+            response={{
+              requestMethod: request.method,
+              status: error.response.status,
+              statusText: error.response.statusText,
+              headers: error.response.headers as Record<string, string>,
+              body: error.response.data,
+            }}
+          />,
+        );
+      } else {
+        // This is a network error (e.g., connection refused) or another issue.
+        // For these, a toast is appropriate.
+        toast.style = Toast.Style.Failure;
+        toast.title = "Request Failed";
+        toast.message = String(error);
+      }
+    }
   }
 
   return (
     <Form
-      navigationTitle={collection?.title}
       actions={
         <ActionPanel>
-          <Action.SubmitForm
-            icon={Icon.Bolt}
-            title="Run request"
-            shortcut={Keyboard.Shortcut.Common.Open}
-            onSubmit={async (data: Request) => {
-              const resp = await runRequest({ ...data, headers }, store);
-              if (resp?.data === undefined) {
-                console.log("UNDEFINED");
-                console.log("UNDEFINED");
-                console.log("UNDEFINED");
-                console.log("UNDEFINED");
-                console.log("UNDEFINED");
-                console.log("UNDEFINED");
-                console.log("UNDEFINED");
-              }
-              if (resp) push(<AxiosResponseView response={resp!} store={store} />);
-            }}
-          />
-          <Action.SubmitForm
-            title="Save"
-            icon={Icon.SaveDocument}
-            shortcut={{ modifiers: ["cmd"], key: "s" }}
-            onSubmit={saveRequest}
-          />
+          <Action.SubmitForm title="Run Request" icon={Icon.Bolt} onSubmit={handleRun} />
+          <Action.SubmitForm title="Save Request" onSubmit={handleSave} shortcut={{ modifiers: ["cmd"], key: "s" }} />
+
           <Action
-            title="Add header"
-            icon={Icon.Heading}
+            title="Add Header"
+            icon={Icon.Plus}
+            onAction={() => setHeaders([...headers, { key: "", value: "" }])}
             shortcut={{ modifiers: ["cmd"], key: "h" }}
-            onAction={() => {
-              setHeaders([...headers, { key: "", value: "" }]);
-            }}
           />
-          <Action
-            title="Remove active header"
-            icon={Icon.Heading}
-            shortcut={{ modifiers: ["ctrl"], key: "h" }}
-            onAction={() => {
-              setHeaders(headers.filter((h) => h.key !== activeHeader));
-            }}
-          />
-          <ActionPanel.Submenu title="Cookies" icon={"🍪"}>
-            <Action.Push title="View cookies" icon={Icon.Eye} target={<CookiesList store={store} />} />
+          {activeIndex !== null && (
             <Action
-              title="Clear cookies"
-              icon={Icon.XMarkCircle}
+              title="Remove Header"
+              icon={Icon.Trash}
               style={Action.Style.Destructive}
               onAction={() => {
-                cookies.setValue({});
+                if (activeIndex === null) return;
+
+                const newFocusIndex = activeIndex > 0 ? activeIndex - 1 : 0;
+
+                const newHeaders = headers.filter((_, i) => i !== activeIndex);
+                setHeaders(headers.filter((_, i) => i !== activeIndex));
+                setActiveIndex(null);
+                showToast({ style: Toast.Style.Success, title: "Header Removed" });
+
+                // Defer the focus call until after React has re-rendered
+                setTimeout(() => {
+                  if (newHeaders.length === 0) {
+                    // If no headers remain, focus the title field.
+                    titleFieldRef.current?.focus();
+                  } else {
+                    // If headers remain, focus the new last one.
+                    headerFieldRefs.current[newFocusIndex]?.focus();
+                  }
+                }, 0); // A 0ms delay is enough to push this to the end of the event queue
               }}
+              shortcut={{ modifiers: ["ctrl"], key: "h" }}
             />
-          </ActionPanel.Submenu>
+          )}
         </ActionPanel>
       }
     >
-      {collection?.baseUrl && <Form.Description text={`Base url: ${collection?.baseUrl}`} />}
-
+      <Form.Description
+        title={`Collection: ${currentCollection?.title}`}
+        text={currentCollection?.baseUrl || "No base URL"}
+      />
       <Form.Dropdown
-        defaultValue={req.method}
-        onChange={(m) => setMethod(m as Request["method"])}
         id="method"
         title="HTTP Method"
+        value={method}
+        onChange={(newValue) => setMethod(newValue as Method)}
       >
-        <Form.Dropdown.Item
-          value={Methods.GET}
-          title={Methods.GET}
-          icon={{ source: Icon.Circle, tintColor: MethodColor.GET }}
-        />
-        <Form.Dropdown.Item
-          value={Methods.POST}
-          title={Methods.POST}
-          icon={{ source: Icon.Circle, tintColor: MethodColor.POST }}
-        />
-        <Form.Dropdown.Item
-          value={Methods.PUT}
-          title={Methods.PUT}
-          icon={{ source: Icon.Circle, tintColor: MethodColor.PUT }}
-        />
-        <Form.Dropdown.Item
-          value={Methods.PATCH}
-          title={Methods.PATCH}
-          icon={{ source: Icon.Circle, tintColor: MethodColor.PATCH }}
-        />
-        <Form.Dropdown.Item
-          value={Methods.DELETE}
-          title={Methods.DELETE}
-          icon={{ source: Icon.Circle, tintColor: MethodColor.DELETE }}
-        />
-        <Form.Dropdown.Item
-          value={Methods.GRAPHQL}
-          title={Methods.GRAPHQL}
-          icon={{ source: Icon.Circle, tintColor: MethodColor.GRAPHQL }}
-        />
+        {Object.keys(METHODS).map((m) => (
+          <Form.Dropdown.Item
+            key={m}
+            value={m}
+            title={m}
+            icon={{
+              source: Icon.Circle,
+              tintColor: METHODS[m as keyof typeof METHODS].color,
+            }}
+          />
+        ))}
       </Form.Dropdown>
+      <Form.TextField
+        id="title"
+        title="Title"
+        ref={titleFieldRef}
+        placeholder="e.g., Get All Users"
+        defaultValue={request?.title}
+      />
+      <Form.TextField
+        id="url"
+        title="URL / Path"
+        placeholder="/users or https://api.example.com"
+        defaultValue={request?.url}
+      />
 
-      <Form.TextField id="title" title="Title" placeholder="Enter title" defaultValue={req.title} />
-      <Form.TextField id="url" title="URL" placeholder="Enter url" defaultValue={req.url} />
-      {[Methods.PATCH, Methods.POST, Methods.PUT].includes(method) && (
-        <Form.TextArea id="body" title="Body" placeholder="Enter json body" defaultValue={req.body} />
+      {/* Conditional fields for Body, Params, etc. */}
+      {method && ["POST", "PUT", "PATCH"].includes(method) && (
+        <Form.TextArea id="body" title="Body" placeholder="Enter JSON body" defaultValue={request?.body} />
       )}
-      {[Methods.GET].includes(method) && (
-        <Form.TextArea id="params" title="Params" placeholder="Enter get params as json" defaultValue={req.params} />
+
+      {/* Show Params field for GET */}
+      {method === "GET" && (
+        <Form.TextArea
+          id="params"
+          title="Params"
+          placeholder="Enter params as a JSON object"
+          defaultValue={request?.params}
+        />
       )}
-      {[Methods.GRAPHQL].includes(method) && (
+
+      {/* Show Query and Variables fields for GraphQL */}
+      {method === "GRAPHQL" && (
         <>
-          <Form.TextArea id="query" title="Query" placeholder="Enter query" defaultValue={req.query} />
+          <Form.TextArea id="query" title="Query" placeholder="Enter GraphQL query" defaultValue={request?.query} />
           <Form.TextArea
             id="variables"
             title="Variables"
-            placeholder="Enter get variables as json"
-            defaultValue={req.variables || ""}
+            placeholder="Enter variables as a JSON object"
+            defaultValue={request?.variables}
           />
         </>
       )}
-      <Form.Separator />
 
-      <Form.Description title="Headers" text="⌘H Add" />
-      {headers.length &&
-        headers.map(({ key, value }, index) => {
-          return (
-            <Fragment key={`header-${index}`}>
-              {activeHeader === key && <Form.Description text="Active 👇" />}
-              <Form.Dropdown
-                id={`header-key-${index}`}
-                title="Key"
-                onChange={(key) => handleHeaderState("key", index, key)}
-                value={headers[index].key}
-                onSearchTextChange={(text) => handleSearchTextChange(index, text)}
-              >
-                {headerSearchTexts[index] !== undefined && (
-                  <Form.Dropdown.Item
-                    key={`header-${-1}-key`}
-                    value={headerSearchTexts[index]!}
-                    title={headerSearchTexts[index]!}
-                  />
-                )}
-                {headerKeys
-                  .filter((option) => filterHeaderOptions(index, option))
-                  .map((key, idx) => (
-                    <Form.Dropdown.Item key={`header-${idx}-key`} value={key} title={key} />
-                  ))}
-              </Form.Dropdown>
-              <Form.TextField
-                id={`header-value-${index}`}
-                title="Value"
-                placeholder="Header value"
-                value={value}
-                onFocus={() => setActiveHeader(key)}
-                onChange={(value) => {
-                  setHeaders(
-                    headers.map((h) => {
-                      if (h.key === key) h.value = value;
-                      return h;
-                    }),
-                  );
-                }}
-              />
-            </Fragment>
-          );
-        })}
+      <Form.Separator />
+      <Form.Description text="Headers" />
+      {/* We'll use our robust header management component here */}
+      <HeadersEditor
+        headers={headers}
+        onHeadersChange={setHeaders}
+        activeIndex={activeIndex}
+        setActiveIndex={setActiveIndex}
+        headerFieldRefs={headerFieldRefs}
+      />
     </Form>
   );
 }
-
-export { RequestForm };

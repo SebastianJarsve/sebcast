@@ -18,11 +18,13 @@
     }
   ],
   "dependencies": {
+    "@nanostores/react": "^1.0.0",
     "@raycast/api": "^1.82.4",
     "@raycast/utils": "^1.17.0",
     "@types/uuid": "^10.0.0",
     "axios": "^1.7.9",
     "https": "^1.0.0",
+    "nanostores": "^1.0.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
