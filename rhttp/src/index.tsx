@@ -1,11 +1,19 @@
-import { Action, ActionPanel, Icon, List, showToast, Toast, useNavigation } from "@raycast/api";
-import { $collections, $currentCollection, $currentCollectionId, useAtom } from "./store";
+import { Action, ActionPanel, Alert, confirmAlert, Icon, List, showToast, Toast, useNavigation } from "@raycast/api";
+import {
+  $collections,
+  $currentCollection,
+  $currentCollectionId,
+  deleteCollection,
+  deleteRequest,
+  useAtom,
+} from "./store";
 import { CollectionForm } from "./views/collection-form";
 import { RequestForm } from "./views/request-form";
 import { Collection } from "./types";
 import { runRequest } from "./utils";
 import { ResponseView } from "./views/response";
 import axios from "axios";
+import { SecretsActions } from "./components/secrets-actions";
 
 function GlobalActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
   return (
@@ -32,6 +40,26 @@ function GlobalActions({ currentCollection: currentCollection }: { currentCollec
         shortcut={{ modifiers: ["cmd", "shift"], key: "n" }}
         target={<CollectionForm />}
       />
+      {currentCollection && (
+        <Action
+          title="Delete Collection"
+          icon={Icon.Trash}
+          style={Action.Style.Destructive}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "delete" }}
+          onAction={async () => {
+            if (
+              await confirmAlert({
+                title: `Delete "${currentCollection.title}"?`,
+                message: "Are you sure? All requests within this collection will also be deleted.",
+                primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
+              })
+            ) {
+              await deleteCollection(currentCollection.id);
+              await showToast({ style: Toast.Style.Success, title: "Collection Deleted" });
+            }
+          }}
+        />
+      )}
     </>
   );
 }
@@ -70,6 +98,7 @@ export default function () {
       actions={
         <ActionPanel>
           <GlobalActions currentCollection={currentCollection} />
+          <SecretsActions />
         </ActionPanel>
       }
     >
@@ -139,9 +168,28 @@ export default function () {
                     }
                   }}
                 />
+                <Action
+                  title="Delete Request"
+                  icon={Icon.Trash}
+                  style={Action.Style.Destructive}
+                  shortcut={{ modifiers: ["ctrl"], key: "x" }}
+                  onAction={async () => {
+                    if (
+                      await confirmAlert({
+                        title: "Delete Request?",
+                        message: "Are you sure you want to delete this request? This cannot be undone.",
+                        primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
+                      })
+                    ) {
+                      await deleteRequest(currentCollection!.id, request.id);
+                      await showToast({ style: Toast.Style.Success, title: "Request Deleted" });
+                    }
+                  }}
+                />
                 <ActionPanel.Section title="Global Actions" key={"global-actions-section"}>
                   <GlobalActions currentCollection={currentCollection} />
                 </ActionPanel.Section>
+                <SecretsActions />
               </ActionPanel>
             }
           />

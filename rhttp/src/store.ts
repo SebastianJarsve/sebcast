@@ -15,29 +15,28 @@ export const $collections = persistentAtom<Collection[]>([], {
   deserialize: (raw) => z.array(collectionSchema).parse(JSON.parse(raw)),
 });
 
+// --- A helper to create the default collection object ---
+function createDefaultCollectionObject(): Collection {
+  const newId = randomUUID();
+  return {
+    id: newId,
+    title: "default",
+    requests: [],
+    headers: [],
+  };
+}
+
 /**
- * Checks if collections are empty after hydration and creates a default one if needed.
+ * Checks if collections are empty on startup and creates a default one if needed.
  */
-async function initializeDefaultCollection() {
-  await $collections.ready; // Wait for the store to be loaded
-  const collections = $collections.get();
-
-  // If the store is empty, it's the user's first time running the extension.
-  if (collections.length === 0) {
-    console.log("No collections found, creating default collection...");
-    const defaultCollection: Collection = {
-      id: randomUUID(),
-      title: "default",
-      requests: [],
-      headers: [],
-    };
-
-    // Add the new collection to the store and select it.
+export async function initializeDefaultCollection() {
+  await $collections.ready;
+  if ($collections.get().length === 0) {
+    const defaultCollection = createDefaultCollectionObject();
     $collections.set([defaultCollection]);
     $currentCollectionId.set(defaultCollection.id);
   }
 }
-
 initializeDefaultCollection();
 
 export const $currentCollectionId = persistentAtom<string | null>(null, {
@@ -138,6 +137,29 @@ export async function updateCollection(collectionId: string, data: Partial<Colle
 }
 
 /**
+ * Deletes a collection, and if it's the last one, creates a new default collection.
+ */
+export async function deleteCollection(collectionId: string) {
+  const newState = $collections.get().filter((c) => c.id !== collectionId);
+
+  if (newState.length === 0) {
+    // If we just deleted the last collection, create a new default one.
+    const defaultCollection = createDefaultCollectionObject();
+    newState.push(defaultCollection);
+    // And make sure to select it
+    $currentCollectionId.set(defaultCollection.id);
+  } else {
+    // If other collections remain, and the deleted one was selected, clear the selection.
+    if ($currentCollectionId.get() === collectionId) {
+      $currentCollectionId.set(null);
+    }
+  }
+
+  // No need to validate here, as we are only removing/replacing data
+  await $collections.setAndFlush(newState);
+}
+
+/**
  * Creates a new request and adds it to the specified collection.
  */
 export async function createRequest(collectionId: string, data: NewRequest) {
@@ -177,4 +199,21 @@ export async function updateRequest(collectionId: string, requestId: string, dat
 
   z.array(collectionSchema).parse(updatedCollections);
   await $collections.setAndFlush(updatedCollections);
+}
+
+/**
+ * Deletes a request from a specific collection.
+ */
+export async function deleteRequest(collectionId: string, requestId: string) {
+  const newState = $collections.get().map((c) => {
+    if (c.id === collectionId) {
+      // Filter out the request with the matching ID
+      const updatedRequests = c.requests.filter((r) => r.id !== requestId);
+      return { ...c, requests: updatedRequests };
+    }
+    return c;
+  });
+
+  // No need to validate here, as we are only removing data
+  await $collections.setAndFlush(newState);
 }

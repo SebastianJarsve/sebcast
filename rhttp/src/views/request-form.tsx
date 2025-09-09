@@ -1,5 +1,5 @@
 // RequestForm.tsx
-import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
+import { Action, ActionPanel, Clipboard, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { useEffect, useRef, useState } from "react";
 import { NewRequest, Request, Headers, Method } from "../types";
 import { $collections, $currentCollection, createRequest, updateRequest, useAtom } from "../store";
@@ -10,6 +10,7 @@ import { ErrorDetail } from "./error-view";
 import { runRequest } from "../utils";
 import { ResponseView } from "./response";
 import axios from "axios";
+import { $secrets } from "../secrets";
 
 interface RequestFormProps {
   collectionId: string;
@@ -20,6 +21,8 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
   const { pop, push } = useNavigation();
   const { value: collections } = useAtom($collections);
   const { value: currentCollection } = useAtom($currentCollection);
+  const { value: secrets } = useAtom($secrets);
+  const secretKeys = secrets.map((s) => s.key);
 
   // Find the parent collection and the specific request to edit (if any)
   const [request] = useState<Request | NewRequest | undefined>(() => {
@@ -57,7 +60,7 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
         await createRequest(collectionId, requestData as NewRequest);
         showToast({ title: "Request Created" });
       }
-      pop();
+      // pop();
     } catch (error) {
       // This block runs if Zod's .parse() throws an error.
       if (error instanceof z.ZodError) {
@@ -129,7 +132,39 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
       actions={
         <ActionPanel>
           <Action.SubmitForm title="Run Request" icon={Icon.Bolt} onSubmit={handleRun} />
-          <Action.SubmitForm title="Save Request" onSubmit={handleSave} shortcut={{ modifiers: ["cmd"], key: "s" }} />
+          <Action.SubmitForm
+            title="Save Request"
+            icon={Icon.HardDrive}
+            onSubmit={handleSave}
+            shortcut={{ modifiers: ["cmd"], key: "s" }}
+          />
+
+          <ActionPanel.Submenu title="Insert Secret" icon={Icon.Key} shortcut={{ modifiers: ["cmd"], key: "i" }}>
+            {secretKeys.length > 0 ? (
+              secretKeys.map((key) => (
+                <Action
+                  key={key}
+                  title={key}
+                  onAction={async () => {
+                    const content = `{{${key}}}`;
+                    await Clipboard.copy(content);
+                    await showToast({
+                      style: Toast.Style.Success,
+                      title: "Copied to Clipboard",
+                      message: content,
+                    });
+                  }}
+                />
+              ))
+            ) : (
+              <Action
+                title="No Secrets Defined"
+                onAction={() => {
+                  /* maybe push to a "manage secrets" form */
+                }}
+              />
+            )}
+          </ActionPanel.Submenu>
 
           <Action
             title="Add Header"
