@@ -1,4 +1,3 @@
-import { Color } from "@raycast/api";
 import { z } from "zod";
 import { METHODS } from "./constants";
 
@@ -76,10 +75,7 @@ export const requestSchema = z.object({
   id: z.string().uuid(),
   method: methodSchema,
   title: z.string().optional(),
-  url: z.union([
-    z.string().url("Invalid URL"),
-    z.string().startsWith("/", { message: "Relative paths must start with /" }),
-  ]),
+  url: z.string().min(1, { message: "URL cannot be empty" }),
   headers: headersSchema,
   body: jsonStringSchema,
   params: jsonStringSchema,
@@ -96,7 +92,6 @@ export type NewRequest = z.infer<typeof newRequestSchema>;
 export const collectionSchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
-  baseUrl: z.string().url("Invalid base URL").optional(),
   requests: z.array(requestSchema),
   headers: headersSchema,
 });
@@ -106,24 +101,23 @@ export type Collection = z.infer<typeof collectionSchema>;
 export const newCollectionSchema = collectionSchema.omit({ id: true });
 export type NewCollection = z.infer<typeof newCollectionSchema>;
 
-// --- SECRETS ---
-export const secretSchema = z
-  .object({
-    id: z.string().uuid(),
-    key: z.string().min(1),
-    value: z.string(),
-    scope: z.enum(["global", "collection"]),
-    collectionId: z.string().uuid().optional(), // Only present for collection-scoped secrets
-  })
-  .refine(
-    (data) => {
-      // If scope is 'collection', collectionId must be present.
-      return data.scope !== "collection" || typeof data.collectionId === "string";
-    },
-    { message: "Collection ID is required for collection-scoped secrets" },
-  );
+// --- ENVIRONMENT ---
 
-export type Secret = z.infer<typeof secretSchema>;
+// // A set of key-value pairs for an environment
+export const variableSchema = z.object({
+  value: z.string(),
+  isSecret: z.boolean().default(false),
+});
+export type Variable = z.infer<typeof variableSchema>;
 
-// The secrets store will now be an array of these objects
-export const secretsSchema = z.array(secretSchema);
+// --- UPDATE THE ENVIRONMENT SCHEMA ---
+export const environmentSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  // Variables are now a record of the new Variable object.
+  variables: z.record(z.string(), variableSchema),
+});
+
+export type Environment = z.infer<typeof environmentSchema>;
+
+export const environmentsSchema = z.array(environmentSchema);

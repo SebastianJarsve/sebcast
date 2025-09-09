@@ -43,9 +43,9 @@ export function CollectionForm({ collectionId }: CollectionFormProps) {
     );
   }
 
-  async function handleSubmit(values: { title: string; baseUrl?: string }) {
+  async function handleSubmit(values: { title: string }) {
     try {
-      const collectionData = { ...values, baseUrl: values.baseUrl || undefined, headers };
+      const collectionData = { ...values, headers };
       if (collectionId) {
         updateCollection(collectionId, collectionData);
         showToast({ title: "Collection Updated" });
@@ -119,12 +119,6 @@ export function CollectionForm({ collectionId }: CollectionFormProps) {
       }
     >
       <Form.TextField id="title" title="Title" placeholder="My API Collection" defaultValue={collection.title} />
-      <Form.TextField
-        id="baseUrl"
-        title="Base URL"
-        placeholder="https://api.example.com"
-        defaultValue={collection.baseUrl}
-      />
       <Form.Separator />
 
       <HeadersEditor

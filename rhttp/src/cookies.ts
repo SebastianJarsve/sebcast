@@ -28,7 +28,7 @@ export function addParsedCookie(cookie: ParsedCookie) {
   const newDomainCookies = domainCookies.filter((c) => c.cookieName !== cookie.cookieName);
   newDomainCookies.push(cookie);
 
-  z.array(cookiesSchema).parse(allCookies);
+  cookiesSchema.parse(allCookies);
 
   // Update the store
   $cookies.set({

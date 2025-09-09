@@ -7,22 +7,49 @@ import { METHODS } from "../constants"; // Assuming you have a constants file fo
 import { HeadersEditor } from "../headers-editor";
 import { z } from "zod";
 import { ErrorDetail } from "./error-view";
-import { runRequest } from "../utils";
+import { resolveVariables, runRequest } from "../utils";
 import { ResponseView } from "./response";
 import axios from "axios";
-import { $secrets } from "../secrets";
+import { $currentEnvironment } from "../environments";
 
 interface RequestFormProps {
   collectionId: string;
   requestId?: string;
 }
 
+function CopyVariableAction() {
+  const resolvedVariables = resolveVariables();
+  const variableKeys = Object.keys(resolvedVariables);
+
+  return (
+    <ActionPanel.Submenu title="Copy Variable" icon={Icon.Key} shortcut={{ modifiers: ["cmd", "shift"], key: "i" }}>
+      {variableKeys.length > 0 ? (
+        variableKeys.map((key) => (
+          <Action
+            key={key}
+            title={key}
+            onAction={async () => {
+              const content = `{{${key}}}`;
+              await Clipboard.copy(content);
+              await showToast({
+                style: Toast.Style.Success,
+                title: "Copied Placeholder",
+              });
+            }}
+          />
+        ))
+      ) : (
+        <Action title="No Variables in Scope" />
+      )}
+    </ActionPanel.Submenu>
+  );
+}
+
 export function RequestForm({ collectionId, requestId }: RequestFormProps) {
   const { pop, push } = useNavigation();
   const { value: collections } = useAtom($collections);
   const { value: currentCollection } = useAtom($currentCollection);
-  const { value: secrets } = useAtom($secrets);
-  const secretKeys = secrets.map((s) => s.key);
+  const {} = useAtom($currentEnvironment);
 
   // Find the parent collection and the specific request to edit (if any)
   const [request] = useState<Request | NewRequest | undefined>(() => {
@@ -101,7 +128,6 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
         />,
       );
     } catch (error) {
-      console.warn("HAS ERROR", error);
       // Check if it's an Axios error with a response from the server
       if (axios.isAxiosError(error) && error.response) {
         // This is an API error (e.g., 404, 500). Show the detailed view.
@@ -117,6 +143,15 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
             }}
           />,
         );
+      } else if (error instanceof z.ZodError) {
+        toast.hide();
+        // This is a validation error from our schema -> Show the ErrorDetail view
+        push(<ErrorDetail error={error} />);
+      } else if (axios.isAxiosError(error) && error.code === "ENOTFOUND") {
+        // This is a DNS/network error, which often means a VPN isn't connected.
+        toast.style = Toast.Style.Failure;
+        toast.title = "Host Not Found";
+        toast.message = "Check your internet or VPN connection.";
       } else {
         // This is a network error (e.g., connection refused) or another issue.
         // For these, a toast is appropriate.
@@ -139,32 +174,7 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
             shortcut={{ modifiers: ["cmd"], key: "s" }}
           />
 
-          <ActionPanel.Submenu title="Insert Secret" icon={Icon.Key} shortcut={{ modifiers: ["cmd"], key: "i" }}>
-            {secretKeys.length > 0 ? (
-              secretKeys.map((key) => (
-                <Action
-                  key={key}
-                  title={key}
-                  onAction={async () => {
-                    const content = `{{${key}}}`;
-                    await Clipboard.copy(content);
-                    await showToast({
-                      style: Toast.Style.Success,
-                      title: "Copied to Clipboard",
-                      message: content,
-                    });
-                  }}
-                />
-              ))
-            ) : (
-              <Action
-                title="No Secrets Defined"
-                onAction={() => {
-                  /* maybe push to a "manage secrets" form */
-                }}
-              />
-            )}
-          </ActionPanel.Submenu>
+          <CopyVariableAction />
 
           <Action
             title="Add Header"
@@ -204,10 +214,7 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
         </ActionPanel>
       }
     >
-      <Form.Description
-        title={`Collection: ${currentCollection?.title}`}
-        text={currentCollection?.baseUrl || "No base URL"}
-      />
+      <Form.Description title={`Collection: `} text={currentCollection?.title ?? ""} />
       <Form.Dropdown
         id="method"
         title="HTTP Method"

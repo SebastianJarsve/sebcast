@@ -15,6 +15,27 @@ export const $collections = persistentAtom<Collection[]>([], {
   deserialize: (raw) => z.array(collectionSchema).parse(JSON.parse(raw)),
 });
 
+// --- DEBUGGING WRAPPER for COLLECTIONS ---
+console.log("Attaching debug logger to $collections store...");
+
+const originalSetCollections = $collections.set;
+$collections.set = (newValue: Collection[]) => {
+  if (!Array.isArray(newValue)) {
+    console.error("<<<<< BUG in COLLECTIONS! Value passed to .set() is NOT an array. Call stack:");
+    console.trace();
+  }
+  originalSetCollections(newValue);
+};
+
+const originalSetAndFlushCollections = $collections.setAndFlush;
+$collections.setAndFlush = async (newValue: Collection[]) => {
+  if (!Array.isArray(newValue)) {
+    console.error("<<<<< BUG in COLLECTIONS! Value passed to .setAndFlush() is NOT an array. Call stack:");
+    console.trace();
+  }
+  await originalSetAndFlushCollections(newValue);
+};
+
 // --- A helper to create the default collection object ---
 function createDefaultCollectionObject(): Collection {
   const newId = randomUUID();
@@ -58,15 +79,6 @@ export const $cookies = persistentAtom<Cookies | null>(null, {
   backend: "file",
   fileName: "cookies.json",
 });
-
-// function useStore() {
-//   const collections = useLocalStorage<Collection[]>("collections", []);
-//   const currentCollectionId = useLocalStorage<Collection["id"]>("currentCollection", undefined);
-//   const cookies = useLocalStorage<Cookies>("cookies", {});
-//   return { collections, currentCollectionId, cookies };
-// }
-
-// export type Store = ReturnType<typeof useStore>;
 
 /**
  * A type guard to check if an atom is a PersistentAtom.

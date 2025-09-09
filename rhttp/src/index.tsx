@@ -9,11 +9,14 @@ import {
 } from "./store";
 import { CollectionForm } from "./views/collection-form";
 import { RequestForm } from "./views/request-form";
-import { Collection } from "./types";
+import { Collection, environmentsSchema } from "./types";
 import { runRequest } from "./utils";
 import { ResponseView } from "./views/response";
 import axios from "axios";
-import { SecretsActions } from "./components/secrets-actions";
+import { EnvironmentsActions } from "./components/variables-actions";
+import { ErrorDetail } from "./views/error-view";
+import { z } from "zod";
+import { $environments } from "./environments";
 
 function GlobalActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
   return (
@@ -67,6 +70,9 @@ function GlobalActions({ currentCollection: currentCollection }: { currentCollec
 export function CollectionDropdown() {
   const { value: collections } = useAtom($collections);
   const { value: currentId } = useAtom($currentCollectionId);
+  const { value } = useAtom($environments);
+  const t = environmentsSchema.parse(value);
+  console.log(JSON.stringify(t));
 
   return (
     <List.Dropdown
@@ -98,7 +104,7 @@ export default function () {
       actions={
         <ActionPanel>
           <GlobalActions currentCollection={currentCollection} />
-          <SecretsActions />
+          <EnvironmentsActions />
         </ActionPanel>
       }
     >
@@ -158,6 +164,15 @@ export default function () {
                             }}
                           />,
                         );
+                      } else if (error instanceof z.ZodError) {
+                        toast.hide();
+                        // This is a validation error from our schema -> Show the ErrorDetail view
+                        push(<ErrorDetail error={error} />);
+                      } else if (axios.isAxiosError(error) && error.code === "ENOTFOUND") {
+                        // This is a DNS/network error, which often means a VPN isn't connected.
+                        toast.style = Toast.Style.Failure;
+                        toast.title = "Host Not Found";
+                        toast.message = "Check your internet or VPN connection.";
                       } else {
                         // This is a network error (e.g., connection refused) or another issue.
                         // For these, a toast is appropriate.
@@ -189,7 +204,7 @@ export default function () {
                 <ActionPanel.Section title="Global Actions" key={"global-actions-section"}>
                   <GlobalActions currentCollection={currentCollection} />
                 </ActionPanel.Section>
-                <SecretsActions />
+                <EnvironmentsActions />
               </ActionPanel>
             }
           />

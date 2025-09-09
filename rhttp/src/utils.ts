@@ -1,9 +1,9 @@
 // src/utils.ts
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import https from "https";
-import { Collection, Request, ParsedCookie, parsedCookieSchema, Cookies } from "./types";
-import { $cookies, addParsedCookie } from "./cookies"; // Import our new cookie store
-import { $secrets } from "./secrets";
+import { Collection, Request, ParsedCookie, parsedCookieSchema } from "./types";
+import { $cookies, addParsedCookie } from "./cookies";
+import { $currentEnvironmentId, $environments } from "./environments";
 
 /**
  * Parses a raw "Set-Cookie" header string into our structured ParsedCookie type.
@@ -83,6 +83,9 @@ function handleSetCookieHeaders(response: AxiosResponse) {
     const rawCookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
     for (const rawCookie of rawCookies) {
       const parsed = parseCookie(rawCookie);
+
+      // --- THIS CHECK IS CRUCIAL ---
+      // Only try to add the cookie if parsing was successful and returned a valid object.
       if (parsed) {
         addParsedCookie(parsed);
       }
@@ -95,105 +98,100 @@ function handleSetCookieHeaders(response: AxiosResponse) {
 /**
  * The single, powerful function to execute a request.
  */
-export async function runRequest(request: Request | Omit<Request, "id">, collection: Collection) {
-  console.log(request);
-  const finalUrl = constructUrl(collection, request);
-  const cookieHeader = prepareCookieHeader(finalUrl);
+export async function runRequest(request: Request, collection: Collection) {
+  const variables = resolveVariables();
 
+  const baseUrl = variables.baseUrl; // Get baseUrl from the environment
+  const requestUrl = substitutePlaceholders(request.url, variables) ?? "";
+
+  let finalUrl = requestUrl;
+  // If the path is relative, combine it with the baseUrl from the environment
+  if (requestUrl.startsWith("/") && baseUrl) {
+    finalUrl = `${baseUrl.replace(/\/$/, "")}${requestUrl}`;
+  }
+  const finalHeaders =
+    request.headers?.map(({ key, value }) => ({
+      key: substitutePlaceholders(key, variables) ?? "",
+      value: substitutePlaceholders(value, variables) ?? "",
+    })) ?? [];
+  const finalBody = substitutePlaceholders(request.body, variables);
+  const finalParams = substitutePlaceholders(request.params, variables);
+  // ... and so on for query, etc.
+
+  const cookieHeader = prepareCookieHeader(finalUrl);
   const mergedHeaders = {
     ...headersArrayToObject(collection.headers),
-    ...headersArrayToObject(request.headers),
+    ...headersArrayToObject(finalHeaders),
     ...cookieHeader,
   };
 
-  const config: AxiosRequestConfig = {
-    url: finalUrl,
-    headers: mergedHeaders,
-    method: request.method === "GRAPHQL" ? "POST" : request.method,
-    params: request.params ? JSON.parse(request.params) : undefined,
-    data: request.body ? JSON.parse(request.body) : undefined,
-    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
-  };
+  try {
+    const config: AxiosRequestConfig = {
+      url: finalUrl,
+      headers: mergedHeaders,
+      method: request.method === "GRAPHQL" ? "POST" : request.method,
 
-  if (request.method === "GRAPHQL") {
-    config.data = {
-      query: request.query,
-      variables: request.variables ? JSON.parse(request.variables) : undefined,
+      // 2. NOW, parse the substituted strings as JSON
+      params: finalParams ? JSON.parse(finalParams) : undefined,
+      data: finalBody ? JSON.parse(finalBody) : undefined,
+
+      httpsAgent: new https.Agent({ rejectUnauthorized: false }),
     };
-  }
 
-  const response = await axios(config);
-  handleSetCookieHeaders(response);
-
-  return response;
-}
-
-/**
- * Constructs a full URL based on a simple rule:
- *
- * - If the request's URL starts with "/", it's combined with the collection's baseUrl.
- * - Otherwise, the request's URL is used as-is, assuming it's a full URL.
- *
- * @param collection The collection object, which may have a `baseUrl`.
- * @param request The request object.
- * @returns The final URL as a string.
- */
-export function constructUrl(collection: Collection, request: Omit<Request, "id" | "headers">): string {
-  const { baseUrl } = collection;
-  const { url: requestUrl } = request;
-
-  // Rule: If the request URL is a relative path, use the base URL.
-  if (requestUrl.startsWith("/")) {
-    if (baseUrl) {
-      // Combine them, removing any trailing slash from the baseUrl to prevent doubles.
-      // e.g., "https://api.com/" + "/users" -> "https://api.com/users"
-      return `${baseUrl.replace(/\/$/, "")}${requestUrl}`;
+    // ... (GraphQL logic)
+    const response = await axios(config);
+    handleSetCookieHeaders(response);
+    return response;
+  } catch (error) {
+    // If JSON.parse fails on a malformed body (e.g. missing comma), it will be caught here.
+    if (axios.isAxiosError(error) && error.response) {
+      handleSetCookieHeaders(error.response);
     }
-    // If there's no baseUrl, a relative path is incomplete, but we return it as-is.
-    return requestUrl;
+    throw error;
   }
-
-  // Otherwise, the request URL is treated as an absolute URL.
-  return requestUrl;
 }
 
 /**
- * Replaces all {{...}} placeholders in a string with values from a secrets object.
- * @param input The string to process (e.g., a URL or header value).
- * @param secrets A record of secret keys and their values.
- * @returns The processed string with placeholders replaced.
+ * Builds the final, resolved map of variables for the active environment,
+ * giving the active environment's variables precedence over Globals.
  */
-export function substitutePlaceholders(input: string, secrets: Record<string, string>): string {
-  if (!input) return "";
+export function resolveVariables(): Record<string, string> {
+  const allEnvironments = $environments.get();
+  const activeId = $currentEnvironmentId.get();
 
-  // This regex finds all instances of {{variable_name}}
-  return input.replace(/{{\s*(\w+)\s*}}/g, (match, key) => {
-    // If the secret is found, return its value. Otherwise, return the original placeholder.
-    return secrets[key] || match;
-  });
-}
+  const globalEnv = allEnvironments.find((e) => e.name === "Globals");
+  const activeEnv = allEnvironments.find((e) => e.id === activeId);
 
-/**
- * Builds the final, resolved map of secrets for a given collection,
- * giving collection-scoped secrets precedence over global ones.
- */
-export function resolveSecretsForCollection(collectionId: string): Record<string, string> {
-  const allSecrets = $secrets.get();
   const resolved: Record<string, string> = {};
 
-  // 1. Add all global secrets first.
-  for (const secret of allSecrets) {
-    if (secret.scope === "global") {
-      resolved[secret.key] = secret.value;
+  // 1. Add all global variables first.
+  if (globalEnv) {
+    for (const [key, variable] of Object.entries(globalEnv.variables)) {
+      resolved[key] = variable.value;
     }
   }
 
-  // 2. Add collection-specific secrets, overwriting any global ones.
-  for (const secret of allSecrets) {
-    if (secret.scope === "collection" && secret.collectionId === collectionId) {
-      resolved[secret.key] = secret.value;
+  // 2. Add active environment variables, overwriting globals with the same key.
+  if (activeEnv) {
+    for (const [key, variable] of Object.entries(activeEnv.variables)) {
+      resolved[key] = variable.value;
     }
   }
 
   return resolved;
+}
+
+/**
+ * Replaces all {{...}} placeholders in a string with values from a variables object.
+ * Safely handles undefined input.
+ */
+function substitutePlaceholders(input: string | undefined, variables: Record<string, string>): string | undefined {
+  // If the input is undefined, just return undefined right away.
+  if (!input) {
+    return undefined;
+  }
+
+  return input.replace(/{{\s*(\w+)\s*}}/g, (match, key) => {
+    return variables[key] || match;
+  });
 }
