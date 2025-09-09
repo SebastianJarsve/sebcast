@@ -1,7 +1,7 @@
 // src/utils.ts
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import https from "https";
-import { Collection, Request, ParsedCookie, parsedCookieSchema } from "./types";
+import { Collection, Request, ParsedCookie, parsedCookieSchema, NewRequest } from "./types";
 import { $cookies, addParsedCookie } from "./cookies";
 import { $currentEnvironmentId, $environments } from "./environments";
 
@@ -98,7 +98,7 @@ function handleSetCookieHeaders(response: AxiosResponse) {
 /**
  * The single, powerful function to execute a request.
  */
-export async function runRequest(request: Request, collection: Collection) {
+export async function runRequest(request: NewRequest, collection: Collection) {
   const variables = resolveVariables();
 
   const baseUrl = variables.baseUrl; // Get baseUrl from the environment

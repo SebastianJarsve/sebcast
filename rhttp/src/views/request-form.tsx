@@ -46,10 +46,10 @@ function CopyVariableAction() {
 }
 
 export function RequestForm({ collectionId, requestId }: RequestFormProps) {
-  const { pop, push } = useNavigation();
+  const { push } = useNavigation();
   const { value: collections } = useAtom($collections);
   const { value: currentCollection } = useAtom($currentCollection);
-  const {} = useAtom($currentEnvironment);
+  const { value: currentEnvironment } = useAtom($currentEnvironment);
 
   // Find the parent collection and the specific request to edit (if any)
   const [request] = useState<Request | NewRequest | undefined>(() => {
@@ -110,8 +110,7 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
     try {
       // 2. Call our utility function
       if (!currentCollection) return;
-      const response = await runRequest({ ...request, headers } as Omit<Request, "id">, currentCollection);
-      console.log(response);
+      const response = await runRequest({ ...request, headers } as NewRequest, currentCollection);
 
       // 3. On success, hide the toast and push the response view
       toast.hide();
@@ -214,7 +213,10 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
         </ActionPanel>
       }
     >
-      <Form.Description title={`Collection: `} text={currentCollection?.title ?? ""} />
+      <Form.Description
+        title={`Collection: ${currentCollection?.title ?? ""}`}
+        text={`Environment: ${currentEnvironment?.name ?? ""}`}
+      />
       <Form.Dropdown
         id="method"
         title="HTTP Method"

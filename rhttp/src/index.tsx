@@ -17,6 +17,7 @@ import { EnvironmentsActions } from "./components/variables-actions";
 import { ErrorDetail } from "./views/error-view";
 import { z } from "zod";
 import { $environments } from "./environments";
+import { AccessoryDropdown } from "./components/accessory-dropdown";
 
 function GlobalActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
   return (
@@ -100,7 +101,8 @@ export default function () {
     <List
       navigationTitle="Requests"
       searchBarPlaceholder="Search requests..."
-      searchBarAccessory={<CollectionDropdown />}
+      // searchBarAccessory={<CollectionDropdown />}
+      searchBarAccessory={<AccessoryDropdown />}
       actions={
         <ActionPanel>
           <GlobalActions currentCollection={currentCollection} />
