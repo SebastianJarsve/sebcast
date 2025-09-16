@@ -1,10 +1,38 @@
 // src/components/EnvironmentsActions.tsx
-import { Action, ActionPanel, Icon } from "@raycast/api";
-import { ManageVariablesList } from "../views/manage-variables-list";
-import React from "react";
+import { Action, ActionPanel, Form, Icon } from "@raycast/api";
+import { RefObject } from "react";
+import { resolveVariables } from "../utils";
 
-export function EnvironmentsActions() {
-  return <ActionPanel.Section title="Environments">
-    <Action.
-    </ActionPanel.Section>;
+interface InsertVariableActionProps {
+  targetRef: RefObject<Form.TextField | Form.TextArea>;
+}
+
+export function InsertVariableAction({ targetRef }: InsertVariableActionProps) {
+  const resolvedVariables = resolveVariables();
+  const variableKeys = Object.keys(resolvedVariables);
+
+  return (
+    <ActionPanel.Submenu title="Insert Variable" icon={Icon.Key} shortcut={{ modifiers: ["cmd", "shift"], key: "i" }}>
+      {variableKeys.length > 0 ? (
+        variableKeys.map((key) => (
+          <Action
+            key={key}
+            title={key}
+            onAction={() => {
+              const field = targetRef.current;
+              if (!field) return;
+
+              // const originalValue = field.value || "";
+              // const placeholder = `{{${key}}}`;
+
+              // // Use the imperative API to set the new value
+              // field.setValue(originalValue + placeholder);
+            }}
+          />
+        ))
+      ) : (
+        <Action title="No Variables in Scope" />
+      )}
+    </ActionPanel.Submenu>
+  );
 }

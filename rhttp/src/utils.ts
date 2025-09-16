@@ -106,13 +106,11 @@ export async function runRequest(request: NewRequest, collection: Collection) {
 
   let finalUrl = requestUrl;
   // If the path is relative, combine it with the baseUrl from the environment
-  // console.warn("I GOT HERE");
   if (requestUrl === undefined || requestUrl.length === 0) {
     finalUrl = baseUrl;
   } else if (requestUrl?.startsWith("/") && baseUrl) {
     finalUrl = `${baseUrl.replace(/\/$/, "")}${requestUrl}`;
   }
-  // console.log(finalUrl, baseUrl, variables);
   const finalHeaders =
     request.headers?.map(({ key, value }) => ({
       key: substitutePlaceholders(key, variables) ?? "",

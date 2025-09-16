@@ -2,7 +2,6 @@
 import { Form } from "@raycast/api";
 import { ResponseAction } from "../types";
 import { Fragment } from "react/jsx-runtime";
-import { Debug } from "./debug";
 
 interface ResponseActionsEditorProps {
   actions: ResponseAction[];

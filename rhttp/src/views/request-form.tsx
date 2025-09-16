@@ -3,7 +3,7 @@ import { Action, ActionPanel, Clipboard, Form, Icon, showToast, Toast, useNaviga
 import { useEffect, useRef, useState } from "react";
 import { NewRequest, Request, Headers, Method, ResponseAction } from "../types";
 import { $collections, $currentCollection, createRequest, updateRequest, useAtom } from "../store";
-import { METHODS } from "../constants"; // Assuming you have a constants file for METHODS etc.
+import { COMMON_HEADER_KEYS, METHODS } from "../constants"; // Assuming you have a constants file for METHODS etc.
 import { HeadersEditor } from "../headers-editor";
 import { z } from "zod";
 import { ErrorDetail } from "./error-view";
@@ -13,6 +13,7 @@ import axios from "axios";
 import { $currentEnvironment } from "../environments";
 import { randomUUID } from "crypto";
 import { ResponseActionsEditor } from "../components/response-actions-editor";
+import { KeyValueEditor } from "../components/key-value-editor";
 
 interface RequestFormProps {
   collectionId: string;
@@ -117,7 +118,6 @@ export function RequestForm({ collectionId, requestId: initialRequestId }: Reque
   }
 
   async function handleRun(request: Omit<Request, "id" | "headers">) {
-    console.log(request);
     // 1. Show a loading toast
     const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
     try {
@@ -288,12 +288,13 @@ export function RequestForm({ collectionId, requestId: initialRequestId }: Reque
         defaultValue={request?.url}
       />
 
-      <Form.Dropdown id="bodyType" defaultValue="JSON" title="Body type">
-        <Form.Dropdown.Item title="NONE" value="NONE" />
-        <Form.Dropdown.Item title="JSON" value="JSON" />
-        <Form.Dropdown.Item title="FORM_DATA" value="FORM_DATA" />
-      </Form.Dropdown>
-
+      {(["POST", "PUT", "PATCH"] as Array<Method | undefined>).includes(method) && (
+        <Form.Dropdown id="bodyType" defaultValue="JSON" title="Body type" info="">
+          <Form.Dropdown.Item title="NONE" value="NONE" />
+          <Form.Dropdown.Item title="JSON" value="JSON" />
+          <Form.Dropdown.Item title="FORM_DATA" value="FORM_DATA" />
+        </Form.Dropdown>
+      )}
       {/* Conditional fields for Body, Params, etc. */}
       {method && ["POST", "PUT", "PATCH"].includes(method) && (
         <Form.TextArea id="body" title="Body" placeholder="Enter JSON body" defaultValue={request?.body} />
@@ -324,16 +325,15 @@ export function RequestForm({ collectionId, requestId: initialRequestId }: Reque
 
       <Form.Separator />
       <Form.Description text="Headers" />
-      {/* We'll use our robust header management component here */}
+      <KeyValueEditor
+        onActiveIndexChange={setActiveIndex}
+        title="Headers"
+        pairs={headers}
+        onPairsChange={setHeaders}
+        commonKeys={COMMON_HEADER_KEYS}
+      />
       <Form.Separator />
 
-      <HeadersEditor
-        headers={headers}
-        onHeadersChange={setHeaders}
-        activeIndex={activeIndex}
-        setActiveIndex={setActiveIndex}
-        headerFieldRefs={headerFieldRefs}
-      />
       <Form.Separator />
       <Form.Description text="Response Actions" />
       <ResponseActionsEditor

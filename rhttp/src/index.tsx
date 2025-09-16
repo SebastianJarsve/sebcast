@@ -13,11 +13,9 @@ import { Collection, environmentsSchema } from "./types";
 import { runRequest } from "./utils";
 import { ResponseView } from "./views/response";
 import axios from "axios";
-import { EnvironmentsActions } from "./components/variables-actions";
 import { ErrorDetail } from "./views/error-view";
 import { z } from "zod";
 import { $currentEnvironment, $environments } from "./environments";
-// import { AccessoryDropdown } from "./components/accessory-dropdown";
 import { GlobalActions } from "./components/global-actions";
 
 function CommonActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
@@ -74,7 +72,6 @@ export function CollectionDropdown() {
   const { value: currentId } = useAtom($currentCollectionId);
   const { value } = useAtom($environments);
   const t = environmentsSchema.parse(value);
-  console.log(JSON.stringify(t));
 
   return (
     <List.Dropdown
@@ -137,9 +134,7 @@ export default function () {
                       const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
                       try {
                         // 2. Call our utility function
-                        console.log("REQUEST", request);
                         const response = await runRequest(request, currentCollection);
-                        console.log(response);
 
                         // 3. On success, hide the toast and push the response view
                         toast.hide();
