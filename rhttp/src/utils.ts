@@ -3,7 +3,7 @@ import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import https from "https";
 import { Collection, Request, ParsedCookie, parsedCookieSchema, NewRequest } from "./types";
 import { $cookies, addParsedCookie } from "./cookies";
-import { $currentEnvironmentId, $environments } from "./environments";
+import { $currentEnvironmentId, $environments, saveVariableToActiveEnvironment } from "./environments";
 
 /**
  * Parses a raw "Set-Cookie" header string into our structured ParsedCookie type.
@@ -106,9 +106,13 @@ export async function runRequest(request: NewRequest, collection: Collection) {
 
   let finalUrl = requestUrl;
   // If the path is relative, combine it with the baseUrl from the environment
-  if (requestUrl.startsWith("/") && baseUrl) {
+  // console.warn("I GOT HERE");
+  if (requestUrl === undefined || requestUrl.length === 0) {
+    finalUrl = baseUrl;
+  } else if (requestUrl?.startsWith("/") && baseUrl) {
     finalUrl = `${baseUrl.replace(/\/$/, "")}${requestUrl}`;
   }
+  // console.log(finalUrl, baseUrl, variables);
   const finalHeaders =
     request.headers?.map(({ key, value }) => ({
       key: substitutePlaceholders(key, variables) ?? "",
@@ -116,7 +120,8 @@ export async function runRequest(request: NewRequest, collection: Collection) {
     })) ?? [];
   const finalBody = substitutePlaceholders(request.body, variables);
   const finalParams = substitutePlaceholders(request.params, variables);
-  // ... and so on for query, etc.
+  const finalGqlQuery = substitutePlaceholders(request.query, variables);
+  const finalGqlVariables = substitutePlaceholders(request.variables, variables);
 
   const cookieHeader = prepareCookieHeader(finalUrl);
   const mergedHeaders = {
@@ -138,9 +143,50 @@ export async function runRequest(request: NewRequest, collection: Collection) {
       httpsAgent: new https.Agent({ rejectUnauthorized: false }),
     };
 
-    // ... (GraphQL logic)
+    if (request.bodyType === "FORM_DATA" && finalBody) {
+      const formData = new FormData();
+
+      // First, parse the JSON string from the body into an object
+      const dataObject: Record<string, string> = JSON.parse(finalBody);
+
+      // Then, loop through the object and append to FormData
+      for (const [key, value] of Object.entries(dataObject)) {
+        formData.append(key, value);
+      }
+
+      config.data = formData;
+      if (config.headers) {
+        delete config.headers["Content-Type"];
+        delete config.headers["Content-Type"];
+      }
+    }
+
+    if (request.method === "GRAPHQL") {
+      config.data = {
+        query: finalGqlQuery,
+        variables: finalGqlVariables ? JSON.parse(finalGqlVariables) : undefined,
+      };
+    }
     const response = await axios(config);
     handleSetCookieHeaders(response);
+
+    if (request.responseActions) {
+      for (const action of request.responseActions) {
+        let extractedValue: unknown;
+
+        if (action.source === "BODY_JSON") {
+          // Use `get` to safely access a value from a nested path
+          extractedValue = getValueByPath(response.data, action.sourcePath);
+        } else if (action.source === "HEADER") {
+          extractedValue = response.headers[action.sourcePath.toLowerCase()];
+        }
+        console.log("EXTRACTED VALUE", extractedValue);
+
+        if (typeof extractedValue === "string" || typeof extractedValue === "number") {
+          saveVariableToActiveEnvironment(action.variableKey, String(extractedValue));
+        }
+      }
+    }
     return response;
   } catch (error) {
     // If JSON.parse fails on a malformed body (e.g. missing comma), it will be caught here.
@@ -194,4 +240,17 @@ function substitutePlaceholders(input: string | undefined, variables: Record<str
   return input.replace(/{{\s*(\w+)\s*}}/g, (match, key) => {
     return variables[key] || match;
   });
+}
+
+/**
+ * Safely gets a nested value from an object using a path string.
+ * @param obj The object to search.
+ * @param path The path string (e.g., "user.address.city").
+ * @returns The found value or undefined if the path is invalid.
+ */
+export function getValueByPath(obj: any, path: string): unknown {
+  return path.split(".").reduce((current, key) => {
+    // Use optional chaining to safely access nested properties
+    return current?.[key];
+  }, obj);
 }

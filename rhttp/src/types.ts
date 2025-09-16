@@ -70,22 +70,53 @@ export type Cookies = z.infer<typeof cookiesSchema>;
 
 // --- CORE DATA SCHEMAS ---
 
-/** Schema for a complete request. */
-export const requestSchema = z.object({
+// A schema for a single action to be performed on a response.
+export const responseActionSchema = z.object({
   id: z.string().uuid(),
-  method: methodSchema,
-  title: z.string().optional(),
-  url: z.string().min(1, { message: "URL cannot be empty" }),
-  headers: headersSchema,
-  body: jsonStringSchema,
-  params: jsonStringSchema,
-  variables: jsonStringSchema,
-  query: z.string().optional(),
+  // Where to look for the data in the response
+  source: z.enum(["BODY_JSON", "HEADER"]),
+  // The path to the data (e.g., "data.token" or "x-auth-token")
+  sourcePath: z.string(),
+  // The name of the variable to save the extracted value to
+  variableKey: z.string(),
 });
-export type Request = z.infer<typeof requestSchema>;
+export type ResponseAction = z.infer<typeof responseActionSchema>;
 
-/** Schema for creating a new request (omits `id`). */
-export const newRequestSchema = requestSchema.omit({ id: true });
+/** Schema for a complete request. */
+const baseRequestSchema = z.object({
+  method: methodSchema,
+  url: z.string(),
+  title: z.string().optional(),
+  bodyType: z.enum(["NONE", "JSON", "FORM_DATA"]).optional().default("NONE"),
+  body: z.string().optional(),
+  params: z.string().optional(),
+  query: z.string().optional(),
+  variables: z.string().optional(),
+  headers: headersSchema,
+  responseActions: z.array(responseActionSchema).optional(),
+});
+
+const requestValidation = (data: z.infer<typeof baseRequestSchema>, ctx: z.RefinementCtx) => {
+  if (data.bodyType === "JSON" && data.body) {
+    try {
+      JSON.parse(data.body);
+    } catch (e) {
+      ctx.addIssue({ path: ["body"], code: "custom", message: "Must be a valid JSON string" });
+    }
+  }
+  if (data.bodyType === "FORM_DATA" && data.body) {
+    try {
+      z.array(z.object({ key: z.string(), value: z.string() })).parse(JSON.parse(data.body));
+    } catch (e) {
+      ctx.addIssue({ path: ["body"], code: "custom", message: "Must be a valid JSON array of key-value pairs" });
+    }
+  }
+};
+
+export const requestSchema = baseRequestSchema.extend({ id: z.string().uuid() }).superRefine(requestValidation);
+export const newRequestSchema = baseRequestSchema.superRefine(requestValidation);
+
+export type Request = z.infer<typeof requestSchema>;
 export type NewRequest = z.infer<typeof newRequestSchema>;
 
 /** Schema for a collection of requests. */

@@ -14,27 +14,6 @@ export const $environments = persistentAtom<Environment[]>([], {
   },
 });
 
-// --- DEBUGGING WRAPPER for ENVIRONMENTS ---
-console.log("Attaching debug logger to $environments store...");
-
-const originalSetEnvs = $environments.set;
-$environments.set = (newValue: Environment[]) => {
-  if (!Array.isArray(newValue)) {
-    console.error("<<<<< BUG in ENVIRONMENTS! Value passed to .set() is NOT an array. Call stack:");
-    console.trace();
-  }
-  originalSetEnvs(newValue);
-};
-
-const originalSetAndFlushEnvs = $environments.setAndFlush;
-$environments.setAndFlush = async (newValue: Environment[]) => {
-  if (!Array.isArray(newValue)) {
-    console.error("<<<<< BUG in ENVIRONMENTS! Value passed to .setAndFlush() is NOT an array. Call stack:");
-    console.trace();
-  }
-  await originalSetAndFlushEnvs(newValue);
-};
-
 // This will store the ID of the currently active environment
 export const $currentEnvironmentId = persistentAtom<string | null>(null, {
   backend: "localStorage",
@@ -150,4 +129,25 @@ export async function deleteVariable(environmentId: string, key: string) {
     return env;
   });
   await $environments.setAndFlush(updated);
+}
+
+/**
+ * Creates or updates a variable in the currently active environment.
+ * @param key The key of the variable.
+ * @param value The value to save.
+ */
+export function saveVariableToActiveEnvironment(key: string, value: string) {
+  const activeId = $currentEnvironmentId.get();
+  if (!activeId) {
+    console.warn("No active environment set, cannot save variable.");
+    return;
+  }
+
+  // For simplicity, we'll mark dynamically saved variables as non-secret by default.
+  const variableData: Variable = {
+    value,
+    isSecret: false,
+  };
+
+  saveVariable(activeId, key, variableData);
 }

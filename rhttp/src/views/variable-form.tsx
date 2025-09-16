@@ -3,9 +3,7 @@ import { Action, ActionPanel, Form, showToast, Toast, useNavigation } from "@ray
 import { useAtom } from "../store";
 import { $environments, saveVariable } from "../environments";
 import { useState } from "react";
-import { Axios } from "axios";
 import { Variable } from "../types";
-import { isSet } from "util/types";
 
 interface VariableFormProps {
   environmentId: string;
@@ -13,7 +11,7 @@ interface VariableFormProps {
 }
 
 export function VariableForm({ environmentId, variableKey }: VariableFormProps) {
-  const { pop, push } = useNavigation();
+  const { pop } = useNavigation();
   const { value: environments } = useAtom($environments);
 
   // Find the current value if we are editing an existing variable
@@ -33,7 +31,7 @@ export function VariableForm({ environmentId, variableKey }: VariableFormProps) 
 
     // ... (uniqueness check can go here if desired)
 
-    const newValue = isValueEditable ? (values.value ?? "") : (currentVariable?.value ?? "");
+    const newValue = values.value ?? "";
     const variableData: Variable = {
       value: newValue,
       isSecret: values.isSecret,
@@ -48,7 +46,11 @@ export function VariableForm({ environmentId, variableKey }: VariableFormProps) 
       navigationTitle={variableKey ? `Edit Variable "${variableKey}"` : "Create Variable"}
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Save Variable" onSubmit={handleSubmit} />
+          <Action.SubmitForm
+            title="Save Variable"
+            onSubmit={handleSubmit}
+            shortcut={{ modifiers: ["cmd"], key: "s" }}
+          />
         </ActionPanel>
       }
     >

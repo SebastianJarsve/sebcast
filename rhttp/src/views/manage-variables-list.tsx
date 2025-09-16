@@ -1,4 +1,3 @@
-// src/views/ManageVariablesList.tsx
 import { Action, ActionPanel, List, Icon, confirmAlert, showToast, Alert, Toast } from "@raycast/api";
 import { useAtom } from "../store";
 import {
@@ -10,9 +9,6 @@ import {
 } from "../environments";
 import { EnvironmentForm } from "./environment-form";
 import { VariableForm } from "./variable-form";
-// We will need forms for these, which we can build next
-// import { EnvironmentForm } from "./EnvironmentForm";
-// import { VariableForm } from "./VariableForm";
 
 function EnvironmentDropdown() {
   const { value: environments } = useAtom($environments);
@@ -39,7 +35,11 @@ function GlobalActions() {
     <>
       {/* Actions for the selected environment */}
       {currentEnvironment?.id && (
-        <Action.Push title="Add Variable" target={<VariableForm environmentId={currentEnvironment?.id} />} />
+        <Action.Push
+          title="Add variable"
+          target={<VariableForm environmentId={currentEnvironment?.id} />}
+          shortcut={{ modifiers: ["cmd"], key: "n" }}
+        />
       )}
 
       <Action.Push

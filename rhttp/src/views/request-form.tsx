@@ -1,7 +1,7 @@
 // RequestForm.tsx
 import { Action, ActionPanel, Clipboard, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { useEffect, useRef, useState } from "react";
-import { NewRequest, Request, Headers, Method } from "../types";
+import { NewRequest, Request, Headers, Method, ResponseAction } from "../types";
 import { $collections, $currentCollection, createRequest, updateRequest, useAtom } from "../store";
 import { METHODS } from "../constants"; // Assuming you have a constants file for METHODS etc.
 import { HeadersEditor } from "../headers-editor";
@@ -11,6 +11,8 @@ import { resolveVariables, runRequest } from "../utils";
 import { ResponseView } from "./response";
 import axios from "axios";
 import { $currentEnvironment } from "../environments";
+import { randomUUID } from "crypto";
+import { ResponseActionsEditor } from "../components/response-actions-editor";
 
 interface RequestFormProps {
   collectionId: string;
@@ -76,10 +78,12 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
     headerFieldRefs.current = headerFieldRefs.current.slice(0, headers.length);
   }, [headers]);
 
+  // 1. Add state for the response actions and the active index
+  const [responseActions, setResponseActions] = useState<ResponseAction[]>(request?.responseActions ?? []);
+  const [activeActionIndex, setActiveActionIndex] = useState<number | null>(null);
   async function handleSave(values: Omit<Request, "id" | "headers">) {
     try {
-      const requestData = { ...values, headers };
-
+      const requestData = { ...values, method, headers, responseActions };
       if (requestId) {
         await updateRequest(collectionId, requestId, requestData);
         showToast({ title: "Request Updated" });
@@ -110,7 +114,7 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
     try {
       // 2. Call our utility function
       if (!currentCollection) return;
-      const response = await runRequest({ ...request, headers } as NewRequest, currentCollection);
+      const response = await runRequest({ ...request, headers, responseActions } as NewRequest, currentCollection);
 
       // 3. On success, hide the toast and push the response view
       toast.hide();
@@ -163,6 +167,7 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
 
   return (
     <Form
+      navigationTitle={`Environment = ${currentEnvironment?.name}`}
       actions={
         <ActionPanel>
           <Action.SubmitForm title="Run Request" icon={Icon.Bolt} onSubmit={handleRun} />
@@ -175,41 +180,66 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
 
           <CopyVariableAction />
 
-          <Action
-            title="Add Header"
-            icon={Icon.Plus}
-            onAction={() => setHeaders([...headers, { key: "", value: "" }])}
-            shortcut={{ modifiers: ["cmd"], key: "h" }}
-          />
-          {activeIndex !== null && (
+          <ActionPanel.Section title="Form Actions">
             <Action
-              title="Remove Header"
-              icon={Icon.Trash}
-              style={Action.Style.Destructive}
-              onAction={() => {
-                if (activeIndex === null) return;
-
-                const newFocusIndex = activeIndex > 0 ? activeIndex - 1 : 0;
-
-                const newHeaders = headers.filter((_, i) => i !== activeIndex);
-                setHeaders(headers.filter((_, i) => i !== activeIndex));
-                setActiveIndex(null);
-                showToast({ style: Toast.Style.Success, title: "Header Removed" });
-
-                // Defer the focus call until after React has re-rendered
-                setTimeout(() => {
-                  if (newHeaders.length === 0) {
-                    // If no headers remain, focus the title field.
-                    titleFieldRef.current?.focus();
-                  } else {
-                    // If headers remain, focus the new last one.
-                    headerFieldRefs.current[newFocusIndex]?.focus();
-                  }
-                }, 0); // A 0ms delay is enough to push this to the end of the event queue
-              }}
-              shortcut={{ modifiers: ["ctrl"], key: "h" }}
+              title="Add Header"
+              icon={Icon.Plus}
+              onAction={() => setHeaders([...headers, { key: "", value: "" }])}
+              shortcut={{ modifiers: ["cmd"], key: "h" }}
             />
-          )}
+            {activeIndex !== null && (
+              <Action
+                title="Remove Header"
+                icon={Icon.Trash}
+                style={Action.Style.Destructive}
+                onAction={() => {
+                  if (activeIndex === null) return;
+
+                  const newFocusIndex = activeIndex > 0 ? activeIndex - 1 : 0;
+
+                  const newHeaders = headers.filter((_, i) => i !== activeIndex);
+                  setHeaders(headers.filter((_, i) => i !== activeIndex));
+                  setActiveIndex(null);
+                  showToast({ style: Toast.Style.Success, title: "Header Removed" });
+
+                  // Defer the focus call until after React has re-rendered
+                  setTimeout(() => {
+                    if (newHeaders.length === 0) {
+                      // If no headers remain, focus the title field.
+                      titleFieldRef.current?.focus();
+                    } else {
+                      // If headers remain, focus the new last one.
+                      headerFieldRefs.current[newFocusIndex]?.focus();
+                    }
+                  }, 0); // A 0ms delay is enough to push this to the end of the event queue
+                }}
+                shortcut={{ modifiers: ["ctrl"], key: "h" }}
+              />
+            )}
+            <Action
+              title="Add Response Action"
+              icon={Icon.Plus}
+              onAction={() =>
+                setResponseActions([
+                  ...responseActions,
+                  { id: randomUUID(), source: "BODY_JSON", sourcePath: "", variableKey: "" },
+                ])
+              }
+              shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
+            />
+            {activeActionIndex !== null && (
+              <Action
+                title="Remove Response Action"
+                icon={Icon.Trash}
+                style={Action.Style.Destructive}
+                onAction={() => {
+                  setResponseActions(responseActions.filter((_, i) => i !== activeActionIndex));
+                  showToast({ style: Toast.Style.Success, title: "Action Removed" });
+                }}
+                shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
+              />
+            )}
+          </ActionPanel.Section>
         </ActionPanel>
       }
     >
@@ -249,6 +279,12 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
         defaultValue={request?.url}
       />
 
+      <Form.Dropdown id="bodyType" defaultValue="JSON" title="Body type">
+        <Form.Dropdown.Item title="NONE" value="NONE" />
+        <Form.Dropdown.Item title="JSON" value="JSON" />
+        <Form.Dropdown.Item title="FORM_DATA" value="FORM_DATA" />
+      </Form.Dropdown>
+
       {/* Conditional fields for Body, Params, etc. */}
       {method && ["POST", "PUT", "PATCH"].includes(method) && (
         <Form.TextArea id="body" title="Body" placeholder="Enter JSON body" defaultValue={request?.body} />
@@ -280,12 +316,21 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
       <Form.Separator />
       <Form.Description text="Headers" />
       {/* We'll use our robust header management component here */}
+      <Form.Separator />
+
       <HeadersEditor
         headers={headers}
         onHeadersChange={setHeaders}
         activeIndex={activeIndex}
         setActiveIndex={setActiveIndex}
         headerFieldRefs={headerFieldRefs}
+      />
+      <Form.Separator />
+      <Form.Description text="Response Actions" />
+      <ResponseActionsEditor
+        actions={responseActions}
+        onActionsChange={setResponseActions}
+        onActiveIndexChange={setActiveActionIndex}
       />
     </Form>
   );

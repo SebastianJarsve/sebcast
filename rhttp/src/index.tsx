@@ -16,10 +16,11 @@ import axios from "axios";
 import { EnvironmentsActions } from "./components/variables-actions";
 import { ErrorDetail } from "./views/error-view";
 import { z } from "zod";
-import { $environments } from "./environments";
-import { AccessoryDropdown } from "./components/accessory-dropdown";
+import { $currentEnvironment, $environments } from "./environments";
+// import { AccessoryDropdown } from "./components/accessory-dropdown";
+import { GlobalActions } from "./components/global-actions";
 
-function GlobalActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
+function CommonActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
   return (
     <>
       {currentCollection && (
@@ -95,122 +96,127 @@ export function CollectionDropdown() {
 
 export default function () {
   const { value: currentCollection } = useAtom($currentCollection);
+  const { value: currentEnvironment } = useAtom($currentEnvironment);
+  const { value: allEnvironments } = useAtom($environments);
   const { push } = useNavigation();
 
   return (
     <List
-      navigationTitle="Requests"
+      navigationTitle={`Environment = ${currentEnvironment?.name}`}
       searchBarPlaceholder="Search requests..."
-      // searchBarAccessory={<CollectionDropdown />}
-      searchBarAccessory={<AccessoryDropdown />}
+      searchBarAccessory={<CollectionDropdown />}
       actions={
         <ActionPanel>
-          <GlobalActions currentCollection={currentCollection} />
-          <EnvironmentsActions />
+          <CommonActions currentCollection={currentCollection} />
+          <GlobalActions />
         </ActionPanel>
       }
     >
       {currentCollection &&
-        currentCollection.requests?.map((request) => (
-          <List.Item
-            key={request.id}
-            title={request.title ?? request.url}
-            actions={
-              <ActionPanel>
-                <Action.Push
-                  key={"edit-request"}
-                  title="Open request"
-                  icon={Icon.Pencil}
-                  shortcut={{ modifiers: ["cmd"], key: "e" }}
-                  target={<RequestForm collectionId={currentCollection.id} requestId={request.id} />}
-                />
-                <Action
-                  title="Run request"
-                  icon={Icon.Bolt}
-                  shortcut={{ modifiers: ["cmd"], key: "o" }}
-                  onAction={async () => {
-                    // 1. Show a loading toast
-                    const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
-                    try {
-                      // 2. Call our utility function
-                      const response = await runRequest(request, currentCollection);
-                      console.log(response);
+        currentCollection.requests?.map((request) => {
+          console.log("Rendering request item with:", { title: request.title, url: request.url });
+          return (
+            <List.Item
+              key={request.id}
+              title={request.title ?? request.url}
+              actions={
+                <ActionPanel>
+                  <Action.Push
+                    key={"edit-request"}
+                    title="Open request"
+                    icon={Icon.Pencil}
+                    target={<RequestForm collectionId={currentCollection.id} requestId={request.id} />}
+                    shortcut={{ modifiers: ["cmd"], key: "e" }}
+                  />
+                  <Action
+                    title="Run request"
+                    icon={Icon.Bolt}
+                    shortcut={{ modifiers: ["cmd"], key: "o" }}
+                    onAction={async () => {
+                      // 1. Show a loading toast
+                      const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
+                      try {
+                        // 2. Call our utility function
+                        console.log("REQUEST", request);
+                        const response = await runRequest(request, currentCollection);
+                        console.log(response);
 
-                      // 3. On success, hide the toast and push the response view
-                      toast.hide();
-                      if (!response) throw "Response is undefined";
-                      push(
-                        <ResponseView
-                          response={{
-                            requestMethod: request.method,
-                            status: response.status,
-                            statusText: response.statusText,
-                            headers: response.headers as Record<string, string>,
-                            body: response.data,
-                          }}
-                        />,
-                      );
-                    } catch (error) {
-                      // Check if it's an Axios error with a response from the server
-                      if (axios.isAxiosError(error) && error.response) {
-                        // This is an API error (e.g., 404, 500). Show the detailed view.
+                        // 3. On success, hide the toast and push the response view
                         toast.hide();
+                        if (!response) throw "Response is undefined";
                         push(
                           <ResponseView
                             response={{
                               requestMethod: request.method,
-                              status: error.response.status,
-                              statusText: error.response.statusText,
-                              headers: error.response.headers as Record<string, string>,
-                              body: error.response.data,
+                              status: response.status,
+                              statusText: response.statusText,
+                              headers: response.headers as Record<string, string>,
+                              body: response.data,
                             }}
                           />,
                         );
-                      } else if (error instanceof z.ZodError) {
-                        toast.hide();
-                        // This is a validation error from our schema -> Show the ErrorDetail view
-                        push(<ErrorDetail error={error} />);
-                      } else if (axios.isAxiosError(error) && error.code === "ENOTFOUND") {
-                        // This is a DNS/network error, which often means a VPN isn't connected.
-                        toast.style = Toast.Style.Failure;
-                        toast.title = "Host Not Found";
-                        toast.message = "Check your internet or VPN connection.";
-                      } else {
-                        // This is a network error (e.g., connection refused) or another issue.
-                        // For these, a toast is appropriate.
-                        toast.style = Toast.Style.Failure;
-                        toast.title = "Request Failed";
-                        toast.message = String(error);
+                      } catch (error) {
+                        // Check if it's an Axios error with a response from the server
+                        if (axios.isAxiosError(error) && error.response) {
+                          // This is an API error (e.g., 404, 500). Show the detailed view.
+                          toast.hide();
+                          push(
+                            <ResponseView
+                              response={{
+                                requestMethod: request.method,
+                                status: error.response.status,
+                                statusText: error.response.statusText,
+                                headers: error.response.headers as Record<string, string>,
+                                body: error.response.data,
+                              }}
+                            />,
+                          );
+                        } else if (error instanceof z.ZodError) {
+                          toast.hide();
+                          // This is a validation error from our schema -> Show the ErrorDetail view
+                          push(<ErrorDetail error={error} />);
+                        } else if (axios.isAxiosError(error) && error.code === "ENOTFOUND") {
+                          // This is a DNS/network error, which often means a VPN isn't connected.
+                          toast.style = Toast.Style.Failure;
+                          toast.title = "Host Not Found";
+                          toast.message = "Check your internet or VPN connection.";
+                        } else {
+                          // This is a network error (e.g., connection refused) or another issue.
+                          // For these, a toast is appropriate.
+                          toast.style = Toast.Style.Failure;
+                          toast.title = "Request Failed";
+                          toast.message = String(error);
+                        }
                       }
-                    }
-                  }}
-                />
-                <Action
-                  title="Delete Request"
-                  icon={Icon.Trash}
-                  style={Action.Style.Destructive}
-                  shortcut={{ modifiers: ["ctrl"], key: "x" }}
-                  onAction={async () => {
-                    if (
-                      await confirmAlert({
-                        title: "Delete Request?",
-                        message: "Are you sure you want to delete this request? This cannot be undone.",
-                        primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
-                      })
-                    ) {
-                      await deleteRequest(currentCollection!.id, request.id);
-                      await showToast({ style: Toast.Style.Success, title: "Request Deleted" });
-                    }
-                  }}
-                />
-                <ActionPanel.Section title="Global Actions" key={"global-actions-section"}>
-                  <GlobalActions currentCollection={currentCollection} />
-                </ActionPanel.Section>
-                <EnvironmentsActions />
-              </ActionPanel>
-            }
-          />
-        ))}
+                    }}
+                  />
+                  <Action
+                    title="Delete Request"
+                    icon={Icon.Trash}
+                    style={Action.Style.Destructive}
+                    shortcut={{ modifiers: ["ctrl"], key: "x" }}
+                    onAction={async () => {
+                      if (
+                        await confirmAlert({
+                          title: "Delete Request?",
+                          message: "Are you sure you want to delete this request? This cannot be undone.",
+                          primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
+                        })
+                      ) {
+                        await deleteRequest(currentCollection!.id, request.id);
+                        await showToast({ style: Toast.Style.Success, title: "Request Deleted" });
+                      }
+                    }}
+                  />
+                  <ActionPanel.Section title="Global Actions" key={"global-actions-section"}>
+                    <CommonActions currentCollection={currentCollection} />
+                  </ActionPanel.Section>
+                  <GlobalActions />
+                </ActionPanel>
+              }
+            />
+          );
+        })}
     </List>
   );
 }

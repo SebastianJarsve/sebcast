@@ -10,31 +10,9 @@ import { randomUUID } from "crypto";
 export const $collections = persistentAtom<Collection[]>([], {
   backend: "file",
   fileName: "collections.json",
-  // serialize: (data) => JSON.stringify(z.array(collectionSchema).parse(data)),
   serialize: JSON.stringify,
   deserialize: (raw) => z.array(collectionSchema).parse(JSON.parse(raw)),
 });
-
-// --- DEBUGGING WRAPPER for COLLECTIONS ---
-console.log("Attaching debug logger to $collections store...");
-
-const originalSetCollections = $collections.set;
-$collections.set = (newValue: Collection[]) => {
-  if (!Array.isArray(newValue)) {
-    console.error("<<<<< BUG in COLLECTIONS! Value passed to .set() is NOT an array. Call stack:");
-    console.trace();
-  }
-  originalSetCollections(newValue);
-};
-
-const originalSetAndFlushCollections = $collections.setAndFlush;
-$collections.setAndFlush = async (newValue: Collection[]) => {
-  if (!Array.isArray(newValue)) {
-    console.error("<<<<< BUG in COLLECTIONS! Value passed to .setAndFlush() is NOT an array. Call stack:");
-    console.trace();
-  }
-  await originalSetAndFlushCollections(newValue);
-};
 
 // --- A helper to create the default collection object ---
 function createDefaultCollectionObject(): Collection {

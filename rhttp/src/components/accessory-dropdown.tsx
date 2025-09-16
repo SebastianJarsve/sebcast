@@ -37,19 +37,19 @@ export function AccessoryDropdown() {
           const envName = activeEnvironment?.name ?? "No Env";
           const displayTitle = isCurrentCollection ? `${c.title} (${envName})` : c.title;
 
-          return <List.Dropdown.Item key={`coll_${c.id}`} title={displayTitle} value={`coll_${c.id}`} />;
+          return <List.Dropdown.Item key={`coll_${c.id}`} title={displayTitle ?? ""} value={`coll_${c.id}`} />;
         })}
       </List.Dropdown.Section>
       <List.Dropdown.Section title="Environments">
         {environments.map((env) => (
           <List.Dropdown.Item
             key={env.id}
-            title={env.name}
+            title={env.name ?? ""}
             value={`env_${env.id}`} // Add "env_" prefix
             icon={env.id === currentEnvironmentId ? "✅" : undefined}
           />
         ))}
-      </List.Dropdown.Section>{" "}
+      </List.Dropdown.Section>
     </List.Dropdown>
   );
 }
