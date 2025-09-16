@@ -1,0 +1,55 @@
+// src/components/ResponseActionsEditor.tsx
+import { Form } from "@raycast/api";
+import { ResponseAction } from "../types";
+import { Fragment } from "react/jsx-runtime";
+import { Debug } from "./debug";
+
+interface ResponseActionsEditorProps {
+  actions: ResponseAction[];
+  onActionsChange: (newActions: ResponseAction[]) => void;
+  onActiveIndexChange: (index: number | null) => void;
+}
+
+export function ResponseActionsEditor({ actions, onActionsChange, onActiveIndexChange }: ResponseActionsEditorProps) {
+  function handleActionChange(index: number, field: keyof ResponseAction, value: string) {
+    const newActions = [...actions];
+    (newActions[index][field] as string) = value;
+    onActionsChange(newActions);
+  }
+
+  return (
+    <>
+      <Form.Description title="Response Actions" text="Extract data from this response to use in other requests." />
+      {actions.map((action, index) => (
+        <Fragment key={action.id}>
+          <Form.Dropdown
+            id={`action-source-${index}`}
+            title={`Rule ${index + 1}: Source`}
+            value={action.source}
+            onFocus={() => onActiveIndexChange(index)}
+            onChange={(newValue) => handleActionChange(index, "source", newValue)}
+          >
+            <Form.Dropdown.Item value="BODY_JSON" title="Response Body (JSON)" />
+            <Form.Dropdown.Item value="HEADER" title="Response Header" />
+          </Form.Dropdown>
+          <Form.TextField
+            id={`action-sourcePath-${index}`}
+            title="Path / Header Name"
+            placeholder="e.g., data.token or x-auth-token"
+            value={action.sourcePath}
+            onFocus={() => onActiveIndexChange(index)}
+            onChange={(newValue) => handleActionChange(index, "sourcePath", newValue)}
+          />
+          <Form.TextField
+            id={`action-variableKey-${index}`}
+            title="Save to Variable"
+            placeholder="e.g., authToken"
+            value={action.variableKey}
+            onFocus={() => onActiveIndexChange(index)}
+            onChange={(newValue) => handleActionChange(index, "variableKey", newValue)}
+          />
+        </Fragment>
+      ))}
+    </>
+  );
+}

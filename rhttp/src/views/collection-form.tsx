@@ -1,28 +1,72 @@
-import { Action, ActionPanel, Form, Icon, showToast, Toast } from "@raycast/api";
-import { Fragment, useState } from "react";
-import { Store } from "..";
-import { Collection, headerKeys, PartialBy } from "../types";
-import { CookiesList } from "./cookies";
+// CollectionForm.tsx
+import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
+import { useState, Fragment, useRef, useEffect } from "react";
+import { Collection, NewCollection, Headers } from "../types";
+import { $collections, createCollection, updateCollection, useAtom } from "../store";
+import { HeadersEditor } from "../headers-editor";
+import { z } from "zod";
+import { ErrorDetail } from "./error-view";
 
-function CollectionForm({
-  collection,
-  onSubmit,
-  store,
-}: {
-  collection: PartialBy<Collection, "id">;
-  onSubmit: (collection: PartialBy<Collection, "id">) => void;
-  store: Store;
-}) {
-  const [activeHeader, setActiveHeader] = useState<string | undefined>();
-  const [headerSearchTexts, setHeaderSearchTexts] = useState<Array<string | undefined>>([]);
+interface CollectionFormProps {
+  collectionId?: string;
+}
 
-  const [headers, setHeaders] = useState<Collection["headers"]>(collection.headers ?? []);
-  console.log(JSON.stringify(collection, null, 2));
+export function CollectionForm({ collectionId }: CollectionFormProps) {
+  const { pop, push } = useNavigation();
+  const { value: collections } = useAtom($collections);
 
-  async function saveCollection(c: PartialBy<Collection, "id">) {
-    onSubmit({ ...collection, ...c, headers });
-    console.log("New Headers", headers);
-    showToast({ title: "Collection saved" });
+  const [collection] = useState<Collection | NewCollection | undefined>(() => {
+    if (collectionId) {
+      return collections.find((c) => c.id === collectionId);
+    }
+    return { title: "", requests: [], headers: [] };
+  });
+
+  const [headers, setHeaders] = useState<Headers>(collection?.headers ?? []);
+  // State to track the currently focused header index ---
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  // Used to focus the field when a header field is removed.
+  const titleFieldRef = useRef<Form.TextField>(null);
+  // Create a ref to hold an array of refs for each header field
+  const headerFieldRefs = useRef<(Form.Dropdown | null)[]>([]);
+
+  useEffect(() => {
+    // This effect runs only when the number of headers changes
+    headerFieldRefs.current = headerFieldRefs.current.slice(0, headers.length);
+  }, [headers]);
+
+  if (!collection) {
+    return (
+      <Form navigationTitle="Error">
+        <Form.Description text="Error: Collection not found." />
+      </Form>
+    );
+  }
+
+  async function handleSubmit(values: { title: string }) {
+    try {
+      const collectionData = { ...values, headers };
+      if (collectionId) {
+        updateCollection(collectionId, collectionData);
+        showToast({ title: "Collection Updated" });
+      } else {
+        createCollection(collectionData as NewCollection);
+        showToast({ title: "Collection Created" });
+      }
+      pop();
+    } catch (error) {
+      // This block runs if Zod's .parse() throws an error.
+      if (error instanceof z.ZodError) {
+        // We can format a user-friendly message from the Zod error.
+        push(<ErrorDetail error={error} />);
+      } else {
+        // Handle other unexpected errors.
+        showToast({
+          style: Toast.Style.Failure,
+          title: "An unknown error occurred",
+        });
+      }
+    }
   }
 
   return (
@@ -30,106 +74,60 @@ function CollectionForm({
       actions={
         <ActionPanel>
           <Action.SubmitForm
-            title="Save"
+            title="Save Collection"
             icon={Icon.SaveDocument}
-            onSubmit={saveCollection}
             shortcut={{ modifiers: ["cmd"], key: "s" }}
+            onSubmit={handleSubmit}
           />
-
           <Action
-            title="Add header"
-            icon={Icon.Heading}
+            title="Add Header"
+            icon={Icon.Plus}
+            onAction={() => setHeaders([...headers, { key: "", value: "" }])}
             shortcut={{ modifiers: ["cmd"], key: "h" }}
-            onAction={() => {
-              // setHeaders({ ...headers, [""]: "" });
-              setHeaders([...headers, { key: "", value: "" }]);
-            }}
           />
-          <Action
-            title="Remove active header"
-            icon={Icon.Heading}
-            shortcut={{ modifiers: ["ctrl"], key: "h" }}
-            onAction={() => {
-              setHeaders(headers.filter((h) => h.key !== activeHeader));
-            }}
-          />
-          <ActionPanel.Submenu title="Cookies">
-            <Action.Push title="View cookies" target={<CookiesList store={store} />} />
+          {/* --- 3. The new "Remove Header" action --- */}
+          {activeIndex !== null && (
             <Action
+              title="Remove Header"
+              icon={Icon.Trash}
               style={Action.Style.Destructive}
-              title="Clear cookies"
               onAction={() => {
-                store.cookies.setValue({});
+                if (activeIndex === null) return;
+
+                const newFocusIndex = activeIndex > 0 ? activeIndex - 1 : 0;
+
+                const newHeaders = headers.filter((_, i) => i !== activeIndex);
+                setHeaders(headers.filter((_, i) => i !== activeIndex));
+                setActiveIndex(null);
+                showToast({ style: Toast.Style.Success, title: "Header Removed" });
+
+                // Defer the focus call until after React has re-rendered
+                setTimeout(() => {
+                  if (newHeaders.length === 0) {
+                    // If no headers remain, focus the title field.
+                    titleFieldRef.current?.focus();
+                  } else {
+                    // If headers remain, focus the new last one.
+                    headerFieldRefs.current[newFocusIndex]?.focus();
+                  }
+                }, 0); // A 0ms delay is enough to push this to the end of the event queue
               }}
+              shortcut={{ modifiers: ["ctrl"], key: "h" }}
             />
-          </ActionPanel.Submenu>
+          )}
         </ActionPanel>
       }
     >
-      <Form.TextField id="title" title="Title" placeholder="Enter title" defaultValue={collection.title} />
-      <Form.TextField id="baseUrl" title="Base URL" placeholder="Enter base URL" defaultValue={collection.baseUrl} />
+      <Form.TextField id="title" title="Title" placeholder="My API Collection" defaultValue={collection.title} />
       <Form.Separator />
 
-      <Form.Description title="Headers" text="⌘H Add" />
-      {headers.length &&
-        headers.map(({ key, value }, index) => {
-          return (
-            <Fragment key={`header-${index}`}>
-              {/* {activeHeader === key && <Form.Description text="Active 👇" />} */}
-              <Form.Dropdown
-                id={`header-key-${index}`}
-                title="Key"
-                onChange={(k) => {
-                  const newHeaders = [...headers];
-                  newHeaders[index].key = k;
-                  console.log("newHeaders", newHeaders);
-                  setHeaders(newHeaders);
-                }}
-                value={headers[index].value ?? ""}
-                onFocus={() => setActiveHeader(key)}
-                onSearchTextChange={(text) => {
-                  const newHeaderSearchTexts = [...headerSearchTexts];
-                  const payload = text.trim();
-                  newHeaderSearchTexts[index] = payload === "" ? undefined : payload;
-                  setHeaderSearchTexts(newHeaderSearchTexts);
-                }}
-              >
-                {headerSearchTexts[index] !== undefined && (
-                  <Form.Dropdown.Item
-                    key={`header-test-key`}
-                    value={headerSearchTexts[index]}
-                    title={headerSearchTexts[index]}
-                  />
-                )}
-                {headerKeys
-                  .filter((option) => {
-                    const search = headerSearchTexts[index];
-                    return search === undefined || option.toLowerCase().includes(search.toLowerCase());
-                  })
-                  .map((key, idx) => (
-                    <Form.Dropdown.Item key={`header-${idx}-key`} value={key} title={key} />
-                  ))}
-              </Form.Dropdown>
-              <Form.TextField
-                id={`header-value-${index}`}
-                title="Value"
-                placeholder="Header value"
-                value={value}
-                onFocus={() => setActiveHeader(key)}
-                onChange={(value) => {
-                  setHeaders(
-                    headers.map((h) => {
-                      if (h.key === key) h.value = value;
-                      return h;
-                    }),
-                  );
-                }}
-              />
-            </Fragment>
-          );
-        })}
+      <HeadersEditor
+        headers={headers}
+        onHeadersChange={setHeaders}
+        activeIndex={activeIndex}
+        setActiveIndex={setActiveIndex}
+        headerFieldRefs={headerFieldRefs}
+      />
     </Form>
   );
 }
-
-export { CollectionForm };

@@ -1,74 +1,103 @@
+// src/views/ResponseView.tsx
 import { Action, ActionPanel, Color, Detail, Icon } from "@raycast/api";
-import { Store } from "..";
-import { MethodColor } from "../types";
-import { mdJson } from "../utils";
-import { CookiesList } from "./cookies";
-import { AxiosResponse } from "axios";
+import { METHODS } from "../constants";
+import { Method } from "../types";
+import { useEffect, useState } from "react";
 
-function ResponseView({ store, response }: { store: Store; response: AxiosResponse }) {
-  const { cookies } = store;
+// The data structure the component will receive
+interface ResponseData {
+  requestMethod: Method;
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+  body: unknown;
+}
 
-  function getStatusColor(status: string) {
-    if (status.startsWith("1")) return Color.Blue;
-    if (status.startsWith("2")) return Color.Green;
-    if (status.startsWith("3")) return Color.Orange;
-    if (status.startsWith("4")) return Color.Red;
-    if (status.startsWith("5")) return Color.Red;
+interface ResponseViewProps {
+  response: ResponseData;
+}
+
+// A helper to format JSON for Markdown
+const mdJson = (json: unknown) => "```json\n" + JSON.stringify(json, null, 2) + "\n```";
+
+type ViewState = "BODY" | "HEADERS";
+
+export function ResponseView({ response }: ResponseViewProps) {
+  const [markdown, setMarkdown] = useState("");
+  const [viewState, setViewState] = useState<ViewState>("BODY");
+  // Helper to color-code the status
+  function getStatusColor(status: number) {
+    if (status >= 500) return Color.Red;
+    if (status >= 400) return Color.Red;
+    if (status >= 300) return Color.Orange;
+    if (status >= 200) return Color.Green;
+    if (status >= 100) return Color.Blue;
     return Color.PrimaryText;
   }
 
-  const request = response?.config!;
-
+  // Helper to get the method color from our constants
   function getMethodColor() {
-    const m = request.method?.toUpperCase() as keyof MethodColor;
-    const availableMethods = Object.keys(MethodColor);
-    if (!availableMethods.some((x) => x === m)) return Color.PrimaryText;
-
-    // @ts-ignore
-    return MethodColor[m as keyof MethodColor];
+    return METHODS[response.requestMethod]?.color ?? Color.PrimaryText;
   }
+
+  const formattedBody = JSON.stringify(response.body, null, 2);
+  const headers = JSON.stringify(response.headers, null, 2);
+
+  useEffect(() => {
+    setMarkdown(`## Body\n${mdJson(response.body)}`);
+  }, [response]);
 
   return (
     <Detail
+      markdown={markdown}
+      navigationTitle="Response"
       actions={
         <ActionPanel>
-          <Action.CopyToClipboard icon={Icon.Clipboard} content={JSON.stringify(response.data)} title="Copy response" />
-          <ActionPanel.Submenu title="Cookies">
-            <Action.Push title="View cookies" target={<CookiesList store={store} />} />
-            <Action
-              style={Action.Style.Destructive}
-              title="Clear cookies"
-              onAction={() => {
-                cookies.setValue({});
-              }}
-            />
-          </ActionPanel.Submenu>
+          <Action
+            icon={Icon.Heading}
+            title={`Show ${viewState === "BODY" ? "body" : "headers"}`}
+            onAction={() => {
+              const md = viewState === "BODY" ? mdJson(response.headers) : mdJson(response.body);
+              setViewState((old) => {
+                const newState = old === "BODY" ? "HEADERS" : "BODY";
+                setMarkdown(`## ${newState === "BODY" ? "Body" : "Headers"}\n${md}`);
+                return newState;
+              });
+            }}
+          />
+          <Action.CopyToClipboard
+            icon={Icon.Clipboard}
+            content={formattedBody}
+            title="Copy Response Body"
+            shortcut={{ modifiers: ["cmd"], key: "c" }}
+          />
+          <Action.CopyToClipboard
+            icon={Icon.CopyClipboard}
+            content={headers}
+            title={"Copy Response Headers"}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+          />
+          {/* We can add cookie actions back here later */}
         </ActionPanel>
       }
-      navigationTitle={request.url}
-      markdown={`## Response  \n${mdJson(response.data)}`}
       metadata={
         <Detail.Metadata>
           <Detail.Metadata.TagList title="Method">
-            <Detail.Metadata.TagList.Item text={request.method?.toUpperCase()} color={getMethodColor()} />
+            <Detail.Metadata.TagList.Item text={response.requestMethod} color={getMethodColor()} />
           </Detail.Metadata.TagList>
+
           <Detail.Metadata.TagList title="Status">
-            <Detail.Metadata.TagList.Item text={`${response?.status}`} color={getStatusColor(`${response?.status}`)} />
-            <Detail.Metadata.TagList.Item
-              text={`${response?.statusText}`}
-              color={getStatusColor(`${response?.status}`)}
-            />
+            <Detail.Metadata.TagList.Item text={`${response.status}`} color={getStatusColor(response.status)} />
+            <Detail.Metadata.TagList.Item text={response.statusText} color={getStatusColor(response.status)} />
           </Detail.Metadata.TagList>
+
           <Detail.Metadata.Separator />
-          {Object.entries(response?.headers || {}).map(([header, value]) => (
-            <Detail.Metadata.TagList key={header} title={header}>
-              <Detail.Metadata.TagList.Item text={value?.toString()} />
-            </Detail.Metadata.TagList>
+
+          {Object.entries(response.headers).map(([key, value]) => (
+            <Detail.Metadata.Label key={key} title={key} text={value} />
           ))}
         </Detail.Metadata>
       }
     />
   );
 }
-
-export { ResponseView as AxiosResponseView };
