@@ -90,10 +90,10 @@ export function useAtom<T>(atom: ReadableAtom<T>) {
 /**
  * Creates a new collection and adds it to the store.
  */
-export async function createCollection(data: NewCollection) {
+export async function createCollection(data: NewCollection | Collection) {
   const newCollection: Collection = {
     ...data,
-    requests: [],
+    requests: "requests" in data ? data.requests : [],
     id: randomUUID(),
   };
 

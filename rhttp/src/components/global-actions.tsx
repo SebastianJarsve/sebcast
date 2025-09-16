@@ -1,9 +1,10 @@
-import { Action, ActionPanel, Icon, showToast } from "@raycast/api";
-import { useAtom } from "../store";
+import { Action, ActionPanel, Clipboard, Icon, showToast, Toast } from "@raycast/api";
+import { $currentCollection, createCollection, useAtom } from "../store";
 import { $currentEnvironment, $currentEnvironmentId, $environments } from "../store/environments";
 import { ManageVariablesList } from "../views/manage-variables-list";
 import { HistoryView } from "../views/history-list-view";
 import { $isHistoryEnabled } from "../store/settings";
+import { newCollectionSchema } from "../types";
 
 function SelectEnvironmentMenu() {
   const { value: currentEnvironment } = useAtom($currentEnvironment);
@@ -27,6 +28,7 @@ function SelectEnvironmentMenu() {
 
 export function GlobalActions() {
   const { value: isHistoryEnabled } = useAtom($isHistoryEnabled);
+  const { value: currentCollection } = useAtom($currentCollection);
   return (
     <>
       <ActionPanel.Section title="Environment">
@@ -55,6 +57,49 @@ export function GlobalActions() {
             $isHistoryEnabled.set(!isHistoryEnabled);
           }}
           shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
+        />
+      </ActionPanel.Section>
+
+      <ActionPanel.Section title="Collection">
+        {currentCollection && (
+          <Action
+            title="Export Collection"
+            icon={Icon.Upload}
+            onAction={async () => {
+              try {
+                // We use our Zod schema to validate and strip the IDs, preparing it for export.
+                const exportableCollection = newCollectionSchema.parse(currentCollection);
+                const jsonString = JSON.stringify(exportableCollection, null, 2);
+                await Clipboard.copy(jsonString);
+                await showToast({ title: "Collection Copied to Clipboard" });
+              } catch (error) {
+                await showToast({ style: Toast.Style.Failure, title: "Failed to Export" });
+              }
+            }}
+          />
+        )}
+        <Action
+          title="Import Collection from Clipboard"
+          icon={Icon.Download}
+          onAction={async () => {
+            try {
+              const clipboardText = await Clipboard.readText();
+              if (!clipboardText) {
+                throw new Error("Clipboard is empty.");
+              }
+              const data = JSON.parse(clipboardText);
+              // Validate the clipboard data against our schema
+              const newCollectionData = newCollectionSchema.parse(data);
+              await createCollection(newCollectionData);
+              await showToast({ title: "Collection Imported Successfully" });
+            } catch (error) {
+              await showToast({
+                style: Toast.Style.Failure,
+                title: "Import Failed",
+                message: "Clipboard does not contain a valid collection.",
+              });
+            }
+          }}
         />
       </ActionPanel.Section>
     </>
