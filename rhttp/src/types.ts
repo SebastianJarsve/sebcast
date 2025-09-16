@@ -152,3 +152,26 @@ export const environmentSchema = z.object({
 export type Environment = z.infer<typeof environmentSchema>;
 
 export const environmentsSchema = z.array(environmentSchema);
+
+// --- HISTORY SCHEMAS ---
+// A schema for the response data we want to save
+export const responseDataSchema = z.object({
+  requestMethod: methodSchema,
+  status: z.number(),
+  statusText: z.string(),
+  headers: z.record(z.string(), z.string()),
+  body: z.unknown(),
+});
+export type ResponseData = z.infer<typeof responseDataSchema>;
+
+// A schema for a single entry in our history log
+export const historyEntrySchema = z.object({
+  id: z.string().uuid(),
+  createdAt: z.coerce.date(),
+  requestSnapshot: newRequestSchema, // The original request that was run
+  sourceRequestId: z.string().optional(),
+  response: responseDataSchema, // The response that was received
+});
+export type HistoryEntry = z.infer<typeof historyEntrySchema>;
+
+export const historySchema = z.array(historyEntrySchema);

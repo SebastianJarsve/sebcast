@@ -1,9 +1,11 @@
 // src/utils.ts
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import https from "https";
-import { Collection, Request, ParsedCookie, parsedCookieSchema, NewRequest } from "./types";
-import { $cookies, addParsedCookie } from "./cookies";
-import { $currentEnvironmentId, $environments, saveVariableToActiveEnvironment } from "./environments";
+import { Collection, Request, ParsedCookie, parsedCookieSchema, NewRequest, ResponseData } from "./types";
+import { $cookies, addParsedCookie } from "./store/cookies";
+import { $currentEnvironmentId, $environments, saveVariableToActiveEnvironment } from "./store/environments";
+import { $isHistoryEnabled } from "./store/settings";
+import { addHistoryEntry } from "./store/history";
 
 /**
  * Parses a raw "Set-Cookie" header string into our structured ParsedCookie type.
@@ -166,6 +168,7 @@ export async function runRequest(request: NewRequest, collection: Collection) {
       };
     }
     const response = await axios(config);
+
     handleSetCookieHeaders(response);
 
     if (request.responseActions) {
@@ -178,18 +181,41 @@ export async function runRequest(request: NewRequest, collection: Collection) {
         } else if (action.source === "HEADER") {
           extractedValue = response.headers[action.sourcePath.toLowerCase()];
         }
-        console.log("EXTRACTED VALUE", extractedValue);
 
         if (typeof extractedValue === "string" || typeof extractedValue === "number") {
           saveVariableToActiveEnvironment(action.variableKey, String(extractedValue));
         }
       }
     }
+
+    // Check the flag before saving to history
+    if ($isHistoryEnabled.get()) {
+      const responseData: ResponseData = {
+        requestMethod: request.method,
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers as Record<string, string>,
+        body: response.data,
+      };
+      addHistoryEntry(request, responseData);
+    }
+
     return response;
   } catch (error) {
     // If JSON.parse fails on a malformed body (e.g. missing comma), it will be caught here.
     if (axios.isAxiosError(error) && error.response) {
       handleSetCookieHeaders(error.response);
+      const errorResponseData: ResponseData = {
+        requestMethod: request.method,
+        status: error.response.status,
+        statusText: error.response.statusText,
+        headers: error.response.headers as Record<string, string>,
+        body: error.response.data,
+      };
+
+      if ($isHistoryEnabled.get()) {
+        await addHistoryEntry(request, errorResponseData);
+      }
     }
     throw error;
   }

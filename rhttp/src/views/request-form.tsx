@@ -4,13 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { NewRequest, Request, Headers, Method, ResponseAction } from "../types";
 import { $collections, $currentCollection, createRequest, updateRequest, useAtom } from "../store";
 import { COMMON_HEADER_KEYS, METHODS } from "../constants"; // Assuming you have a constants file for METHODS etc.
-import { HeadersEditor } from "../headers-editor";
 import { z } from "zod";
 import { ErrorDetail } from "./error-view";
 import { resolveVariables, runRequest } from "../utils";
 import { ResponseView } from "./response";
 import axios from "axios";
-import { $currentEnvironment } from "../environments";
+import { $currentEnvironment } from "../store/environments";
 import { randomUUID } from "crypto";
 import { ResponseActionsEditor } from "../components/response-actions-editor";
 import { KeyValueEditor } from "../components/key-value-editor";
@@ -117,19 +116,22 @@ export function RequestForm({ collectionId, requestId: initialRequestId }: Reque
     }
   }
 
-  async function handleRun(request: Omit<Request, "id" | "headers">) {
+  async function handleRun(request: Omit<Request, "id">) {
     // 1. Show a loading toast
     const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
+    const requestData: Request = { ...request, headers, responseActions, id: currentRequestId ?? randomUUID() };
     try {
       // 2. Call our utility function
       if (!currentCollection) return;
-      const response = await runRequest({ ...request, headers, responseActions } as NewRequest, currentCollection);
+      const response = await runRequest(requestData, currentCollection);
 
       // 3. On success, hide the toast and push the response view
       toast.hide();
       if (!response) throw response;
       push(
         <ResponseView
+          sourceRequestId={currentRequestId}
+          request={requestData}
           response={{
             requestMethod: request.method,
             status: response.status,
@@ -146,6 +148,7 @@ export function RequestForm({ collectionId, requestId: initialRequestId }: Reque
         toast.hide();
         push(
           <ResponseView
+            request={requestData}
             response={{
               requestMethod: request.method,
               status: error.response.status,

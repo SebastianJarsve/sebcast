@@ -6,7 +6,7 @@ import {
   deleteVariable,
   deleteEnvironment,
   $currentEnvironment,
-} from "../environments";
+} from "../store/environments";
 import { EnvironmentForm } from "./environment-form";
 import { VariableForm } from "./variable-form";
 

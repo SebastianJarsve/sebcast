@@ -1,9 +1,9 @@
 import { atom, ReadableAtom } from "nanostores";
-import { PersistentAtom, persistentAtom } from "./persistent-atom";
+import { PersistentAtom, persistentAtom } from "../lib/persistent-atom";
 import { z } from "zod";
 import { useEffect, useState } from "react";
 import { useStore } from "@nanostores/react";
-import { Collection, collectionSchema, Cookies, NewCollection, NewRequest, Request, requestSchema } from "./types";
+import { Collection, collectionSchema, NewCollection, NewRequest, Request } from "../types";
 import { computed } from "nanostores";
 import { randomUUID } from "crypto";
 
@@ -52,11 +52,6 @@ export const $currentCollection = computed([$currentCollectionId, $collections],
 });
 
 export const $selectedRequestId = atom<string | null>(null);
-
-export const $cookies = persistentAtom<Cookies | null>(null, {
-  backend: "file",
-  fileName: "cookies.json",
-});
 
 /**
  * A type guard to check if an atom is a PersistentAtom.

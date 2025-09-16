@@ -1,22 +1,18 @@
 // src/views/ResponseView.tsx
-import { Action, ActionPanel, Color, Detail, Icon, open } from "@raycast/api";
+import { Action, ActionPanel, Color, Detail, Icon, open, showToast, Toast, useNavigation } from "@raycast/api";
 import { METHODS } from "../constants";
-import { Method } from "../types";
+import { Method, NewRequest, Request, ResponseData } from "../types";
 import { useEffect, useState } from "react";
 import path from "path";
 import { randomUUID } from "crypto";
 import fs from "fs/promises";
-
-// The data structure the component will receive
-export interface ResponseData {
-  requestMethod: Method;
-  status: number;
-  statusText: string;
-  headers: Record<string, string>;
-  body: unknown;
-}
+import { addHistoryEntry } from "../store/history";
+import { z } from "zod";
+import { ErrorDetail } from "./error-view";
 
 export interface ResponseViewProps {
+  request: NewRequest | Request;
+  sourceRequestId?: string;
   response: ResponseData;
 }
 
@@ -25,7 +21,8 @@ export const mdJson = (json: unknown) => "```json\n" + JSON.stringify(json, null
 
 type ViewState = "BODY" | "HEADERS";
 
-export function ResponseView({ response }: ResponseViewProps) {
+export function ResponseView({ response, request, sourceRequestId }: ResponseViewProps) {
+  const { push } = useNavigation();
   const [markdown, setMarkdown] = useState("");
   const [viewState, setViewState] = useState<ViewState>("BODY");
   // Helper to color-code the status
@@ -82,6 +79,24 @@ export function ResponseView({ response }: ResponseViewProps) {
             content={headers}
             title={"Copy Response Headers"}
             shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+          />
+          <Action
+            title="Save to History"
+            icon={Icon.Clock}
+            shortcut={{ modifiers: ["cmd"], key: "s" }}
+            onAction={async () => {
+              try {
+                await addHistoryEntry(request, response, sourceRequestId);
+                showToast({ title: "Saved to History" });
+              } catch (error) {
+                // If validation fails, show the detailed error view
+                if (error instanceof z.ZodError) {
+                  push(<ErrorDetail error={error} />);
+                } else {
+                  showToast({ style: Toast.Style.Failure, title: "Failed to Save History" });
+                }
+              }
+            }}
           />
           {isHtml && typeof response.body === "string" && (
             <Action

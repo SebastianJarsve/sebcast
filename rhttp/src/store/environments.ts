@@ -1,7 +1,7 @@
 // src/store/environments.ts
 import { randomUUID } from "node:crypto";
-import { persistentAtom } from "./persistent-atom";
-import { Environment, environmentsSchema, Variable } from "./types";
+import { persistentAtom } from "../lib/persistent-atom";
+import { Environment, environmentsSchema, Variable } from "../types";
 import { computed } from "nanostores";
 
 export const $environments = persistentAtom<Environment[]>([], {

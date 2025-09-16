@@ -15,7 +15,7 @@ import { ResponseView } from "./views/response";
 import axios from "axios";
 import { ErrorDetail } from "./views/error-view";
 import { z } from "zod";
-import { $currentEnvironment, $environments } from "./environments";
+import { $currentEnvironment, $environments } from "./store/environments";
 import { GlobalActions } from "./components/global-actions";
 
 function CommonActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
@@ -111,7 +111,6 @@ export default function () {
     >
       {currentCollection &&
         currentCollection.requests?.map((request) => {
-          console.log("Rendering request item with:", { title: request.title, url: request.url });
           return (
             <List.Item
               key={request.id}
@@ -141,6 +140,8 @@ export default function () {
                         if (!response) throw "Response is undefined";
                         push(
                           <ResponseView
+                            sourceRequestId={request.id}
+                            request={request}
                             response={{
                               requestMethod: request.method,
                               status: response.status,
@@ -157,6 +158,8 @@ export default function () {
                           toast.hide();
                           push(
                             <ResponseView
+                              sourceRequestId={request.id}
+                              request={request}
                               response={{
                                 requestMethod: request.method,
                                 status: error.response.status,

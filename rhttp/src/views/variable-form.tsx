@@ -1,7 +1,7 @@
 // src/views/VariableForm.tsx
 import { Action, ActionPanel, Form, showToast, Toast, useNavigation } from "@raycast/api";
 import { useAtom } from "../store";
-import { $environments, saveVariable } from "../environments";
+import { $environments, saveVariable } from "../store/environments";
 import { useState } from "react";
 import { Variable } from "../types";
 

@@ -1,7 +1,6 @@
 // src/store/cookies.ts
-import { persistentAtom } from "./persistent-atom";
-import { cookiesSchema, Cookies, ParsedCookie } from "./types";
-import { z } from "zod";
+import { persistentAtom } from "../lib/persistent-atom";
+import { cookiesSchema, Cookies, ParsedCookie } from "../types";
 
 export const $cookies = persistentAtom<Cookies>(
   {},

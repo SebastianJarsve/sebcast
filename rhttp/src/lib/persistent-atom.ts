@@ -1,7 +1,8 @@
 import { atom, type WritableAtom } from "nanostores";
-import { LocalStorage, environment } from "@raycast/api";
+import { LocalStorage, PushAction, Toast, environment, showToast } from "@raycast/api";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { z } from "zod";
 
 // Define the storage backends available.
 type Backend = "localStorage" | "file" | "both";
@@ -71,64 +72,61 @@ export function persistentAtom<T>(
   // Create a standard Nanostores atom and cast it to our extended type to attach custom properties.
   const a = atom<T>(initial) as PersistentAtom<T>;
 
-  // Pre-calculate the full file path if a file backend is used.
-  const filePath = fileName ? path.join(dir, fileName) : undefined;
-
   // A variable to hold the timer for debounced writes.
   let debouncer: NodeJS.Timeout | undefined;
+  let isFlushing = false;
 
   // A single, reusable async function to write the state to the configured storage.
   const write = async (value: T) => {
-    // Write to LocalStorage if the backend is 'localStorage' or 'both'.
-    if (backend !== "file" && key) {
-      await LocalStorage.setItem(key, serialize(value));
+    // Write to file if backend is 'file' or 'both'
+    if ((backend === "file" || backend === "both") && fileName) {
+      const filePath = path.join(environment.supportPath, fileName);
+      try {
+        await fs.mkdir(environment.supportPath, { recursive: true });
+        await fs.writeFile(filePath, serialize(value));
+      } catch (e) {
+        console.error(`[persistentAtom] Failed to write to file ${fileName}:`, e);
+      }
     }
-    // Write to a file if the backend is 'file' or 'both'.
-    if (backend !== "localStorage" && filePath) {
-      await fs.mkdir(dir, { recursive: true }); // Ensure the directory exists.
-      await fs.writeFile(filePath, serialize(value));
+    // Write to localStorage if backend is 'localStorage' or 'both'
+    if ((backend === "localStorage" || backend === "both") && key) {
+      try {
+        await LocalStorage.setItem(key, serialize(value));
+      } catch (e) {
+        console.error(`[persistentAtom] Failed to write to LocalStorage ${key}:`, e);
+      }
     }
   };
-
-  // --- Hydration ---
-  // Use an Immediately-Invoked Function Expression (IIFE) to start the async hydration process.
-  // The 'ready' promise resolves once this process is complete.
   a.ready = (async () => {
     try {
-      // Prioritize hydrating from the file system, as it might be manually edited.
-      if (backend !== "localStorage" && filePath) {
+      let hydrated = false;
+      // Prioritize reading from file if backend is 'file' or 'both'
+      if ((backend === "file" || backend === "both") && fileName) {
+        const filePath = path.join(environment.supportPath, fileName);
         const buf = await fs.readFile(filePath).catch(() => undefined);
         if (buf) {
           a.set(deserialize(buf.toString()));
-          return; // Exit if successfully hydrated from file.
+          hydrated = true;
         }
       }
-      // If file hydration fails or isn't configured, try LocalStorage.
-      if (backend !== "file" && key) {
+      // If not hydrated from file, try localStorage if backend is 'localStorage' or 'both'
+      if (!hydrated && (backend === "localStorage" || backend === "both") && key) {
         const raw = await LocalStorage.getItem<string>(key);
-        if (raw != null) a.set(deserialize(raw));
+        if (raw != null) {
+          a.set(deserialize(raw));
+        }
       }
-    } catch {
-      // If storage is corrupted or fails to parse, ignore the error.
-      // The atom will simply retain its initial value.
+    } catch (e) {
+      console.error(`[persistentAtom] Failed to hydrate atom for ${key || fileName}:`, e);
+      showToast({ title: "Hydration error", message: `${key || fileName}`, style: Toast.Style.Failure });
+      // TODO: log error to file
     }
   })().then(() => {
-    // --- Persistence Listener ---
-    // IMPORTANT: The subscription logic is placed in a .then() block.
-    // This ensures we only start listening for changes *after* the initial hydration is complete,
-    // preventing a race condition where the initial state overwrites the saved state.
-    a.subscribe((v) => {
-      if (debounceMs == null) {
-        // If no debounce is configured, write immediately.
-        void write(v);
-      } else {
-        // Otherwise, clear any pending timer and set a new one.
-        if (debouncer) clearTimeout(debouncer);
-        debouncer = setTimeout(() => void write(v), debounceMs);
-      }
+    a.subscribe((value) => {
+      if (isFlushing) return;
+      void write(value);
     });
   });
-
   // --- `set` Method Override ---
   // We "monkey-patch" the original .set() method to add our custom equality check.
   const baseSet = a.set.bind(a);

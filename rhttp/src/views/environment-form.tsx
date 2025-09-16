@@ -1,7 +1,7 @@
 // src/views/EnvironmentForm.tsx
 import { Action, ActionPanel, Form, showToast, Toast, useNavigation } from "@raycast/api";
 import { useAtom } from "../store";
-import { $environments, createEnvironment, updateEnvironment } from "../environments";
+import { $environments, createEnvironment, updateEnvironment } from "../store/environments";
 
 interface EnvironmentFormProps {
   environmentId?: string;
