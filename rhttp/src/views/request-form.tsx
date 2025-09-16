@@ -47,7 +47,7 @@ function CopyVariableAction() {
   );
 }
 
-export function RequestForm({ collectionId, requestId }: RequestFormProps) {
+export function RequestForm({ collectionId, requestId: initialRequestId }: RequestFormProps) {
   const { push } = useNavigation();
   const { value: collections } = useAtom($collections);
   const { value: currentCollection } = useAtom($currentCollection);
@@ -55,12 +55,15 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
 
   // Find the parent collection and the specific request to edit (if any)
   const [request] = useState<Request | NewRequest | undefined>(() => {
-    if (requestId) {
+    if (initialRequestId) {
       const collection = collections.find((c) => c.id === collectionId);
-      return collection?.requests.find((r) => r.id === requestId);
+      return collection?.requests.find((r) => r.id === initialRequestId);
     }
     return { method: "GET", url: "", headers: [] }; // Blank slate for a new request
   });
+  // 1. Create an internal state to track the ID. It starts with the prop.
+  const [currentRequestId, setCurrentRequestId] = useState(initialRequestId);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Local state for form fields, initialized from the request data
   const [method, setMethod] = useState(request?.method);
@@ -82,13 +85,17 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
   const [responseActions, setResponseActions] = useState<ResponseAction[]>(request?.responseActions ?? []);
   const [activeActionIndex, setActiveActionIndex] = useState<number | null>(null);
   async function handleSave(values: Omit<Request, "id" | "headers">) {
+    if (isSaving) return;
+    setIsSaving(true);
+
     try {
       const requestData = { ...values, method, headers, responseActions };
-      if (requestId) {
-        await updateRequest(collectionId, requestId, requestData);
+      if (currentRequestId) {
+        await updateRequest(collectionId, currentRequestId, requestData);
         showToast({ title: "Request Updated" });
       } else {
-        await createRequest(collectionId, requestData as NewRequest);
+        const newReq = await createRequest(collectionId, requestData as NewRequest);
+        setCurrentRequestId(newReq.id);
         showToast({ title: "Request Created" });
       }
       // pop();
@@ -104,6 +111,8 @@ export function RequestForm({ collectionId, requestId }: RequestFormProps) {
           title: "An unknown error occurred",
         });
       }
+    } finally {
+      setIsSaving(false);
     }
   }
 

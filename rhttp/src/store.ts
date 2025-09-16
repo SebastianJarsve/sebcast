@@ -168,6 +168,7 @@ export async function createRequest(collectionId: string, data: NewRequest) {
   // Validation
   z.array(collectionSchema).parse(updatedCollections);
   await $collections.setAndFlush(updatedCollections);
+  return newRequest;
 }
 
 /**
