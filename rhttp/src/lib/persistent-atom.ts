@@ -1,8 +1,7 @@
 import { atom, type WritableAtom } from "nanostores";
-import { LocalStorage, PushAction, Toast, environment, showToast } from "@raycast/api";
+import { LocalStorage, Toast, environment, showToast } from "@raycast/api";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { z } from "zod";
 
 // Define the storage backends available.
 type Backend = "localStorage" | "file" | "both";

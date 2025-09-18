@@ -60,7 +60,9 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
             title="Clear All History"
             icon={Icon.Trash}
             style={Action.Style.Destructive}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
             onAction={async () => {
+              console.log("clear all?");
               if (
                 await confirmAlert({
                   title: "Clear All History?",
@@ -192,7 +194,22 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                 <ActionPanel.Section>
                   <Action
                     title="Clear All History"
-                    // ... (same as the global action)
+                    icon={Icon.Trash}
+                    style={Action.Style.Destructive}
+                    shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
+                    onAction={async () => {
+                      console.log("clear all?");
+                      if (
+                        await confirmAlert({
+                          title: "Clear All History?",
+                          message: "This will permanently delete all saved request entries.",
+                          primaryAction: { title: "Clear History", style: Alert.ActionStyle.Destructive },
+                        })
+                      ) {
+                        clearHistory();
+                        showToast({ title: "History Cleared" });
+                      }
+                    }}
                   />
                 </ActionPanel.Section>
               </ActionPanel>
