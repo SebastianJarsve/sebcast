@@ -2,7 +2,7 @@
 import { Action, ActionPanel, Clipboard, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { useEffect, useRef, useState } from "react";
 import { NewRequest, Request, Headers, Method, ResponseAction } from "../types";
-import { $collections, $currentCollection, createRequest, updateRequest, useAtom } from "../store";
+import { $collections, $currentCollection, createRequest, updateRequest } from "../store";
 import { COMMON_HEADER_KEYS, METHODS } from "../constants"; // Assuming you have a constants file for METHODS etc.
 import { z } from "zod";
 import { ErrorDetail } from "./error-view";
@@ -13,6 +13,7 @@ import { $currentEnvironment } from "../store/environments";
 import { randomUUID } from "crypto";
 import { ResponseActionsEditor } from "../components/response-actions-editor";
 import { KeyValueEditor } from "../components/key-value-editor";
+import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 
 interface RequestFormProps {
   collectionId: string;
@@ -59,7 +60,7 @@ export function RequestForm({ collectionId, requestId: initialRequestId }: Reque
       const collection = collections.find((c) => c.id === collectionId);
       return collection?.requests.find((r) => r.id === initialRequestId);
     }
-    return { method: "GET", url: "", headers: [] }; // Blank slate for a new request
+    return { method: "GET", url: "", headers: [], bodyType: "NONE" } as NewRequest; // Blank slate for a new request
   });
   // 1. Create an internal state to track the ID. It starts with the prop.
   const [currentRequestId, setCurrentRequestId] = useState(initialRequestId);
@@ -74,12 +75,6 @@ export function RequestForm({ collectionId, requestId: initialRequestId }: Reque
   // Used to focus the field when a header field is removed.
   const titleFieldRef = useRef<Form.TextField>(null);
   // Create a ref to hold an array of refs for each header field
-  const headerFieldRefs = useRef<(Form.Dropdown | null)[]>([]);
-
-  useEffect(() => {
-    // This effect runs only when the number of headers changes
-    headerFieldRefs.current = headerFieldRefs.current.slice(0, headers.length);
-  }, [headers]);
 
   // 1. Add state for the response actions and the active index
   const [responseActions, setResponseActions] = useState<ResponseAction[]>(request?.responseActions ?? []);
@@ -213,17 +208,6 @@ export function RequestForm({ collectionId, requestId: initialRequestId }: Reque
                   setHeaders(headers.filter((_, i) => i !== activeIndex));
                   setActiveIndex(null);
                   showToast({ style: Toast.Style.Success, title: "Header Removed" });
-
-                  // Defer the focus call until after React has re-rendered
-                  setTimeout(() => {
-                    if (newHeaders.length === 0) {
-                      // If no headers remain, focus the title field.
-                      titleFieldRef.current?.focus();
-                    } else {
-                      // If headers remain, focus the new last one.
-                      headerFieldRefs.current[newFocusIndex]?.focus();
-                    }
-                  }, 0); // A 0ms delay is enough to push this to the end of the event queue
                 }}
                 shortcut={{ modifiers: ["ctrl"], key: "h" }}
               />
@@ -326,16 +310,18 @@ export function RequestForm({ collectionId, requestId: initialRequestId }: Reque
         </>
       )}
 
-      <Form.Separator />
-      <Form.Description text="Headers" />
-      <KeyValueEditor
-        onActiveIndexChange={setActiveIndex}
-        title="Headers"
-        pairs={headers}
-        onPairsChange={setHeaders}
-        commonKeys={COMMON_HEADER_KEYS}
-      />
-      <Form.Separator />
+      {headers.length > 0 && (
+        <>
+          <Form.Separator />
+          <KeyValueEditor
+            onActiveIndexChange={setActiveIndex}
+            title="Headers"
+            pairs={headers}
+            onPairsChange={setHeaders}
+            commonKeys={COMMON_HEADER_KEYS}
+          />
+        </>
+      )}
 
       <Form.Separator />
       <Form.Description text="Response Actions" />

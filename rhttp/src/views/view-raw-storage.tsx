@@ -73,7 +73,7 @@ export function RawStorageView({ store }: { store: { collections: { value: unkno
     <List
       isShowingDetail
       searchBarPlaceholder={`Browsing ${breadcrumb || "/"} — page ${page + 1}/${pages}`}
-      onSelectionChange={(id) => setSelectedId(id)}
+      onSelectionChange={(id) => setSelectedId(id ?? undefined)}
       selectedItemId={selectedId}
       throttle
     >

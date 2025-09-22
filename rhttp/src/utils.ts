@@ -1,7 +1,6 @@
-// src/utils.ts
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import https from "https";
-import { Collection, Request, ParsedCookie, parsedCookieSchema, NewRequest, ResponseData } from "./types";
+import { Collection, ParsedCookie, parsedCookieSchema, NewRequest, ResponseData } from "./types";
 import { $cookies, addParsedCookie } from "./store/cookies";
 import { $currentEnvironmentId, $environments, saveVariableToActiveEnvironment } from "./store/environments";
 import { $isHistoryEnabled } from "./store/settings";

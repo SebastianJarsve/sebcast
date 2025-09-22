@@ -1,12 +1,5 @@
 import { Action, ActionPanel, Alert, confirmAlert, Icon, List, showToast, Toast, useNavigation } from "@raycast/api";
-import {
-  $collections,
-  $currentCollection,
-  $currentCollectionId,
-  deleteCollection,
-  deleteRequest,
-  useAtom,
-} from "./store";
+import { $collections, $currentCollection, $currentCollectionId, deleteCollection, deleteRequest } from "./store";
 import { CollectionForm } from "./views/collection-form";
 import { RequestForm } from "./views/request-form";
 import { Collection, environmentsSchema } from "./types";
@@ -17,6 +10,7 @@ import { ErrorDetail } from "./views/error-view";
 import { z } from "zod";
 import { $currentEnvironment, $environments } from "./store/environments";
 import { GlobalActions } from "./components/global-actions";
+import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 
 function CommonActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
   return (

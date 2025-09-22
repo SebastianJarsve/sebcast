@@ -8,9 +8,6 @@ interface KeyValueEditorProps {
   title: string;
   pairs: Pair[];
   onPairsChange: (newPairs: Pair[]) => void;
-  // ... (add props for focus management if needed)
-
-  // Optional: If provided, the "key" field becomes an auto-complete dropdown
   commonKeys?: readonly string[];
   onActiveIndexChange: (index: number | null) => void;
 }

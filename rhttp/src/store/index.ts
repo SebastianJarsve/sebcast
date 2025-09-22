@@ -1,15 +1,16 @@
-import { atom, ReadableAtom } from "nanostores";
-import { PersistentAtom, persistentAtom } from "../lib/persistent-atom";
+import { atom } from "nanostores";
 import { z } from "zod";
-import { useEffect, useState } from "react";
-import { useStore } from "@nanostores/react";
 import { Collection, collectionSchema, NewCollection, NewRequest, Request } from "../types";
 import { computed } from "nanostores";
 import { randomUUID } from "crypto";
+import { createFileAdapter, createLocalStorageAdapter } from "@sebastianjarsve/persistent-atom/adapters";
+import path from "path";
+import { environment } from "@raycast/api";
+import { persistentAtom } from "@sebastianjarsve/persistent-atom";
 
 export const $collections = persistentAtom<Collection[]>([], {
-  backend: "file",
-  fileName: "collections.json",
+  storage: createFileAdapter(path.join(environment.supportPath, "collections.json")),
+  key: "collections",
   serialize: JSON.stringify,
   deserialize: (raw) => z.array(collectionSchema).parse(JSON.parse(raw)),
 });
@@ -39,7 +40,7 @@ export async function initializeDefaultCollection() {
 initializeDefaultCollection();
 
 export const $currentCollectionId = persistentAtom<string | null>(null, {
-  backend: "localStorage",
+  storage: createLocalStorageAdapter(),
   key: "currentCollectionId",
   isEqual(a, b) {
     return a === b;
@@ -52,38 +53,6 @@ export const $currentCollection = computed([$currentCollectionId, $collections],
 });
 
 export const $selectedRequestId = atom<string | null>(null);
-
-/**
- * A type guard to check if an atom is a PersistentAtom.
- * It now accepts any ReadableAtom.
- */
-function isPersistentAtom<T>(atom: ReadableAtom<T>): atom is PersistentAtom<T> {
-  // The check remains the same: we just look for the .ready promise.
-  return "ready" in atom;
-}
-
-/**
- * A smart hook that subscribes to any atom (writable or computed)
- * and automatically handles hydration for persistent atoms.
- *
- * @param atom The Nanostores atom to use.
- * @returns An object with the atom's `value` and its `isHydrated` status.
- */
-export function useAtom<T>(atom: ReadableAtom<T>) {
-  const value = useStore(atom);
-  const [isHydrated, setIsHydrated] = useState(!isPersistentAtom(atom));
-
-  useEffect(() => {
-    if (isPersistentAtom(atom)) {
-      atom.ready.then(() => {
-        // We can set the state directly once the promise resolves.
-        setIsHydrated(true);
-      });
-    }
-  }, [atom]);
-
-  return { value, isHydrated };
-}
 
 // --- ACTIONS ---
 

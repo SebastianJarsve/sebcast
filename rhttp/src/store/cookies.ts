@@ -1,12 +1,13 @@
 // src/store/cookies.ts
-import { persistentAtom } from "../lib/persistent-atom";
+import { persistentAtom } from "@sebastianjarsve/persistent-atom";
 import { cookiesSchema, Cookies, ParsedCookie } from "../types";
+import { createRaycastFileAdapter } from "../lib/adapters";
 
 export const $cookies = persistentAtom<Cookies>(
   {},
   {
-    backend: "file",
-    fileName: "cookies.json",
+    storage: createRaycastFileAdapter("cookies.json"),
+    key: "cookies",
     serialize: (data) => JSON.stringify(cookiesSchema.parse(data)),
     deserialize: (raw) => cookiesSchema.parse(JSON.parse(raw)),
   },

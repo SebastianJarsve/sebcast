@@ -1,14 +1,14 @@
 // src/store/history.ts
 import { randomUUID } from "crypto";
-import { persistentAtom } from "../lib/persistent-atom";
+import { persistentAtom } from "@sebastianjarsve/persistent-atom";
 import { HistoryEntry, historySchema, ResponseData, NewRequest } from "../types";
-
+import { createRaycastFileAdapter } from "../lib/adapters";
 /**
  * A persistent atom to store an array of history entries.
  */
 export const $history = persistentAtom<HistoryEntry[]>([], {
-  backend: "file",
-  fileName: "request-history.json",
+  storage: createRaycastFileAdapter("request-history.json"),
+  key: "request-history",
   serialize: (data) => JSON.stringify(historySchema.parse(data)),
   deserialize: (raw) => historySchema.parse(JSON.parse(raw)),
 });
