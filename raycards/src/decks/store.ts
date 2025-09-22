@@ -197,7 +197,7 @@ export async function deleteCard(deckId: string, cardId: string) {
  * @param cardId The ID of the card to update.
  * @param quality The user's rating of their recall (0-5).
  */
-export function updateCardAfterReview(deckId: string, cardId: string, quality: FeedbackQuality) {
+export async function updateCardAfterReview(deckId: string, cardId: string, quality: FeedbackQuality) {
   const currentDecks = decksAtom.get();
 
   const updatedDecks = currentDecks.map((deck) => {
@@ -218,7 +218,7 @@ export function updateCardAfterReview(deckId: string, cardId: string, quality: F
     return deck;
   });
 
-  decksAtom.set(updatedDecks);
+  decksAtom.setAndFlush(updatedDecks);
 }
 
 export async function importCardsIntoDeck(deckId: string, cardsDataString: string) {

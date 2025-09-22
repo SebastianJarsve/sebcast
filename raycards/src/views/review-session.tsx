@@ -11,7 +11,7 @@ export default function ReviewSession({ deckId }: { deckId: string }) {
   const { value: decks, isHydrated } = useAtom(decksAtom);
   const deck = decks.find((d) => d.id === deckId);
   // Memoize the list of due cards so it's only calculated once
-  const dueCards = useMemo(() => (deck ? getDueCards(deck) : []), [deck]);
+  const dueCards = useMemo(() => (deck ? getDueCards(deck) : []), [deckId]);
 
   // State to manage the session
   const [currentIndex, setCurrentIndex] = useState(0);
