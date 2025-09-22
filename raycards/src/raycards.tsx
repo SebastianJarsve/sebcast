@@ -7,7 +7,7 @@ import { GlobalActions } from "./components/glabl-actions";
 import { CardForm } from "./views/card-form";
 import CardListView from "./views/card-list-view";
 import ReviewSession from "./views/review-session";
-import { getTotalDueCardsCount } from "./decks/store";
+import { getDueCards, getTotalDueCardsCount } from "./decks/store";
 
 function CommonActions() {
   return <GlobalActions />;
@@ -30,7 +30,8 @@ export default function Command() {
       }
     >
       {decks.map((deck) => {
-        const dueCount = getDueCardsCount(deck);
+        const dueCards = getDueCards(deck);
+        const dueCount = dueCards.length;
 
         return (
           <List.Item
@@ -54,7 +55,7 @@ export default function Command() {
                   <Action.Push
                     title="Start Review Session"
                     icon={Icon.Play}
-                    target={<ReviewSession deckId={deck.id} />}
+                    target={<ReviewSession name={`Deck: ${deck.name}`} dueCards={dueCards} total={dueCount} />}
                   />
                   <Action.Push
                     title="Add New Card"
