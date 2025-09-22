@@ -8,7 +8,9 @@ export {
   editDeck,
   getDueCards,
   getDueCardsCount,
+  getTotalDueCardsCount,
+  updateCardAfterReview,
 } from "./store";
-export { CardSchema, DeckSchema } from "./schemas";
+export { CardSchema, DeckSchema, DecksSchema, CardFormSchema } from "./schemas";
 
-export type { Deck, Card } from "./types";
+export type { Deck, Card, CardFormData } from "./types";

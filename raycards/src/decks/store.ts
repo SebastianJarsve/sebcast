@@ -3,7 +3,7 @@ import { persistentAtom } from "@sebastianjarsve/persistent-atom";
 import { createRaycastFileAdapter } from "~/lib/adapters";
 import { showToast } from "@raycast/api";
 import { DecksSchema } from "./schemas";
-import type { Card, Deck } from "./types";
+import type { Card, CardFormData, Deck } from "./types";
 import { calculateSrsParameters, FeedbackQuality } from "~/lib/srs";
 
 // --- ATOM DEFINITIONS ---
@@ -66,6 +66,22 @@ export function getTotalDueCardsCount() {
   }, 0);
 }
 
+/**
+ * A selector that returns a sorted, unique list of all tags from all cards.
+ */
+export function getAllUniqueTags(): string[] {
+  const allDecks = decksAtom.get();
+
+  // 1. Get a single array of all tags from all cards
+  const allTags = allDecks.flatMap((deck) => deck.cards.flatMap((card) => card.tags));
+
+  // 2. Use a Set to get only the unique tags, then convert back to an array
+  const uniqueTags = [...new Set(allTags)];
+
+  // 3. Sort them alphabetically for a clean UI
+  return uniqueTags.sort();
+}
+
 // --- ACTIONS ---
 
 export async function addDeck(name: string) {
@@ -92,7 +108,7 @@ export async function deleteDeck(deckId: string) {
   await decksAtom.setAndFlush(updatedDecks);
 }
 
-export async function addCard(deckId: string, cardData: { front: string; back: string }) {
+export async function addCard(deckId: string, cardData: CardFormData) {
   const currentDecks = decksAtom.get();
   const parentDeck = currentDecks.find((d) => d.id === deckId);
   if (!parentDeck) {
@@ -129,7 +145,7 @@ export async function addCard(deckId: string, cardData: { front: string; back: s
   await decksAtom.setAndFlush(updatedDecks);
 }
 
-export async function editCard(deckId: string, cardId: string, newValues: { front: string; back: string }) {
+export async function editCard(deckId: string, cardId: string, newValues: CardFormData) {
   const currentDecks = decksAtom.get();
   const parentDeck = currentDecks.find((d) => d.id === deckId);
   if (!parentDeck) {

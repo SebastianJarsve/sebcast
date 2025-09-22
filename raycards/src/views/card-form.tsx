@@ -1,7 +1,9 @@
-import { Form, ActionPanel, Action, useNavigation, showToast, Toast } from "@raycast/api";
-import { decksAtom, addCard, editCard } from "../decks";
+import { Form, ActionPanel, Action, useNavigation, showToast, Toast, Icon } from "@raycast/api";
+import { decksAtom, addCard, editCard, CardFormData } from "../decks";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { logger } from "~/lib/logger";
+import { getAllUniqueTags } from "~/decks/store";
+import { useMemo, useState } from "react";
 
 interface CardFormProps {
   /**
@@ -23,7 +25,33 @@ export function CardForm({ deckId, cardId }: CardFormProps) {
   const parentDeck = decks.find((d) => d.id === deckId);
   const cardToEdit = isEditMode ? parentDeck?.cards.find((c) => c.id === cardId) : undefined;
 
-  function handleSubmit(values: { front: string; back: string }) {
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    cardToEdit?.tags || (parentDeck?.name ? [parentDeck?.name.toLowerCase()] : []),
+  );
+  const [tagInput, setTagInput] = useState(""); // State for the text input field
+
+  const existingTags = useMemo(getAllUniqueTags, [decks]);
+  const allTags = useMemo(() => Array.from(new Set([...existingTags, ...selectedTags])), [existingTags, selectedTags]);
+
+  // --- Handlers ---
+  function handleProcessTagInput() {
+    // Take the text from the input, split by comma, clean it up
+    const newTags = tagInput
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0);
+
+    if (newTags.length === 0) return;
+
+    // Add the new tags to the existing list, ensuring no duplicates
+    const combined = [...selectedTags, ...newTags];
+    const unique = [...new Set(combined)];
+
+    setSelectedTags(unique);
+    setTagInput(""); // Clear the input field after processing
+  }
+
+  function handleSubmit(values: CardFormData) {
     if (!values.front || !values.back) {
       showToast({ style: Toast.Style.Failure, title: "Front and Back cannot be empty" });
       return;
@@ -72,6 +100,29 @@ export function CardForm({ deckId, cardId }: CardFormProps) {
         defaultValue={cardToEdit?.back || ""}
         enableMarkdown
         info="Markdown is enabled"
+      />
+      {/* This TagPicker is for displaying and removing tags */}
+      <Form.TagPicker id="tags" title="Selected Tags" value={selectedTags} onChange={setSelectedTags}>
+        {allTags.map((tag) => (
+          <Form.TagPicker.Item title={tag} key={tag} value={tag} />
+        ))}
+      </Form.TagPicker>
+
+      {/* This TextField is for typing new tags */}
+      <Form.TextField
+        id="tag-input"
+        title="New Tag"
+        placeholder="react,"
+        info="Type tag here, end with comma"
+        value={tagInput}
+        onChange={(newValue) => {
+          if (newValue.trim().endsWith(",")) {
+            handleProcessTagInput();
+            setTagInput("");
+            return;
+          }
+          setTagInput(newValue);
+        }}
       />
     </Form>
   );
