@@ -6,7 +6,6 @@ import { CardFormSchema, DecksSchema } from "./schemas";
 import type { Card, CardFormData, Deck } from "./types";
 import { calculateSrsParameters, FeedbackQuality } from "~/lib/srs";
 import { logger } from "~/lib/logger";
-import { z } from "zod";
 // --- ATOM DEFINITIONS ---
 
 const initialDecks: Deck[] = [];
@@ -54,8 +53,13 @@ export function getDueCards(deck: Deck, options: { sort?: boolean } = {}): Card[
  * A selector that counts how many cards in a deck are due.
  * It reuses the getDueCards logic without sorting.
  */
-export function getDueCardsCount(deck: Deck) {
-  return getDueCards(deck).length;
+export function getDueCardsCount(deckOrDeckId: Deck | string) {
+  if (typeof deckOrDeckId === "string") {
+    const deck = decksAtom.get().find((d) => d.id === deckOrDeckId);
+    if (!deck) return 0;
+    return getDueCards(deck).length;
+  }
+  return getDueCards(deckOrDeckId).length;
 }
 
 /**
