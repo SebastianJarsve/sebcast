@@ -1,11 +1,13 @@
 // CollectionForm.tsx
 import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
-import { useState, Fragment, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Collection, NewCollection, Headers } from "../types";
-import { $collections, createCollection, updateCollection, useAtom } from "../store";
-import { HeadersEditor } from "../headers-editor";
+import { $collections, createCollection, updateCollection } from "../store";
+
 import { z } from "zod";
 import { ErrorDetail } from "./error-view";
+import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { KeyValueEditor } from "../components/key-value-editor";
 
 interface CollectionFormProps {
   collectionId?: string;
@@ -25,15 +27,6 @@ export function CollectionForm({ collectionId }: CollectionFormProps) {
   const [headers, setHeaders] = useState<Headers>(collection?.headers ?? []);
   // State to track the currently focused header index ---
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  // Used to focus the field when a header field is removed.
-  const titleFieldRef = useRef<Form.TextField>(null);
-  // Create a ref to hold an array of refs for each header field
-  const headerFieldRefs = useRef<(Form.Dropdown | null)[]>([]);
-
-  useEffect(() => {
-    // This effect runs only when the number of headers changes
-    headerFieldRefs.current = headerFieldRefs.current.slice(0, headers.length);
-  }, [headers]);
 
   if (!collection) {
     return (
@@ -93,24 +86,9 @@ export function CollectionForm({ collectionId }: CollectionFormProps) {
               style={Action.Style.Destructive}
               onAction={() => {
                 if (activeIndex === null) return;
-
-                const newFocusIndex = activeIndex > 0 ? activeIndex - 1 : 0;
-
-                const newHeaders = headers.filter((_, i) => i !== activeIndex);
                 setHeaders(headers.filter((_, i) => i !== activeIndex));
                 setActiveIndex(null);
                 showToast({ style: Toast.Style.Success, title: "Header Removed" });
-
-                // Defer the focus call until after React has re-rendered
-                setTimeout(() => {
-                  if (newHeaders.length === 0) {
-                    // If no headers remain, focus the title field.
-                    titleFieldRef.current?.focus();
-                  } else {
-                    // If headers remain, focus the new last one.
-                    headerFieldRefs.current[newFocusIndex]?.focus();
-                  }
-                }, 0); // A 0ms delay is enough to push this to the end of the event queue
               }}
               shortcut={{ modifiers: ["ctrl"], key: "h" }}
             />
@@ -121,13 +99,7 @@ export function CollectionForm({ collectionId }: CollectionFormProps) {
       <Form.TextField id="title" title="Title" placeholder="My API Collection" defaultValue={collection.title} />
       <Form.Separator />
 
-      <HeadersEditor
-        headers={headers}
-        onHeadersChange={setHeaders}
-        activeIndex={activeIndex}
-        setActiveIndex={setActiveIndex}
-        headerFieldRefs={headerFieldRefs}
-      />
+      <KeyValueEditor pairs={headers} onPairsChange={setHeaders} onActiveIndexChange={setActiveIndex} title="Headers" />
     </Form>
   );
 }

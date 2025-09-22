@@ -1,13 +1,13 @@
 // src/store/environments.ts
 import { randomUUID } from "node:crypto";
-import { persistentAtom } from "../lib/persistent-atom";
+import { persistentAtom } from "@sebastianjarsve/persistent-atom";
+import { createLocalStorageAdapter } from "@sebastianjarsve/persistent-atom/adapters";
 import { Environment, environmentsSchema, Variable } from "../types";
 import { computed } from "nanostores";
 
 export const $environments = persistentAtom<Environment[]>([], {
-  backend: "file",
-  fileName: "env.json",
-  // key: "app-environments",
+  storage: createLocalStorageAdapter(),
+  key: "env",
   serialize: (data) => JSON.stringify(environmentsSchema.parse(data)),
   deserialize: (raw) => {
     return environmentsSchema.parse(JSON.parse(raw));
@@ -16,7 +16,7 @@ export const $environments = persistentAtom<Environment[]>([], {
 
 // This will store the ID of the currently active environment
 export const $currentEnvironmentId = persistentAtom<string | null>(null, {
-  backend: "localStorage",
+  storage: createLocalStorageAdapter(),
   key: "app-active-environment-id",
 });
 

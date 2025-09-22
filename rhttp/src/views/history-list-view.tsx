@@ -15,11 +15,12 @@ import { $history, deleteHistoryEntry, clearHistory } from "../store/history";
 import { runRequest } from "../utils";
 import { ResponseView } from "./response";
 import { HistoryEntry, Method, ResponseData } from "../types";
-import { $collections, useAtom } from "../store";
+import { $collections } from "../store";
 import axios from "axios";
 import { ErrorDetail } from "./error-view";
 import { z } from "zod";
 import { METHODS } from "../constants";
+import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 
 // Helper function to get a color for the status code accessory
 function getStatusAccessory(status: number): List.Item.Accessory {

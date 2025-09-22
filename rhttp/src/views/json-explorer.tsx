@@ -79,7 +79,7 @@ export default function JSONExplorer({
     <List
       isShowingDetail
       searchBarPlaceholder={`${title} — ${breadcrumb || "/"}  (page ${page + 1}/${pages})`}
-      onSelectionChange={(id) => setSelectedId(id)}
+      onSelectionChange={(id) => setSelectedId(id ?? undefined)}
       selectedItemId={selectedId}
       throttle
       filtering
@@ -97,12 +97,12 @@ export default function JSONExplorer({
               <Action
                 title="Up One Level"
                 onAction={() => setPath((p) => p.slice(0, -1))}
-                shortcut={{ key: "backspace" }}
+                shortcut={{ modifiers: [], key: "backspace" }}
               />
               <Action
                 title="Up One Level"
                 onAction={() => setPath((p) => p.slice(0, -1))}
-                shortcut={{ key: "escape" }}
+                shortcut={{ modifiers: [], key: "escape" }}
               />
               <Action
                 title="Up One Level"
@@ -147,7 +147,7 @@ export default function JSONExplorer({
                 <Action
                   title="Open Node"
                   onAction={() => setPath((p) => [...p, r.accessor])}
-                  shortcut={{ key: "enter" }}
+                  shortcut={{ modifiers: [], key: "enter" }}
                 />
               )}
               <BackActions canGoUp={path.length > 0} onBack={() => setPath((p) => p.slice(0, -1))} />
@@ -174,8 +174,8 @@ function BackActions({ canGoUp, onBack }: { canGoUp: boolean; onBack: () => void
   if (!canGoUp) return null;
   return (
     <>
-      <Action title="Up One Level" onAction={onBack} shortcut={{ key: "backspace" }} />
-      <Action title="Up One Level" onAction={onBack} shortcut={{ key: "escape" }} />
+      <Action title="Up One Level" onAction={onBack} shortcut={{ modifiers: [], key: "backspace" }} />
+      <Action title="Up One Level" onAction={onBack} shortcut={{ modifiers: [], key: "escape" }} />
       <Action title="Up One Level" onAction={onBack} shortcut={{ modifiers: ["cmd"], key: "[" }} />
     </>
   );
@@ -326,7 +326,7 @@ function safeStringify(v: unknown) {
     const seen = new WeakSet();
     return JSON.stringify(
       v,
-      (key, val) => {
+      (_, val) => {
         if (typeof val === "object" && val !== null) {
           if (seen.has(val)) return "[Circular]";
           seen.add(val);

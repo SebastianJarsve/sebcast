@@ -1,8 +1,8 @@
 // src/components/AccessoryDropdown.tsx
 import { List } from "@raycast/api";
-import { useAtom } from "../store";
 import { $collections, $currentCollectionId } from "../store";
-import { $environments, $currentEnvironmentId } from "../environments";
+import { $environments, $currentEnvironmentId } from "../store/environments";
+import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 
 export function AccessoryDropdown() {
   const { value: collections } = useAtom($collections);

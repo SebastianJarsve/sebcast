@@ -1,10 +1,11 @@
 import { Action, ActionPanel, Clipboard, Icon, showToast, Toast } from "@raycast/api";
-import { $currentCollection, createCollection, useAtom } from "../store";
+import { $currentCollection, createCollection } from "../store";
 import { $currentEnvironment, $currentEnvironmentId, $environments } from "../store/environments";
 import { ManageVariablesList } from "../views/manage-variables-list";
 import { HistoryView } from "../views/history-list-view";
 import { $isHistoryEnabled } from "../store/settings";
 import { newCollectionSchema } from "../types";
+import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 
 function SelectEnvironmentMenu() {
   const { value: currentEnvironment } = useAtom($currentEnvironment);

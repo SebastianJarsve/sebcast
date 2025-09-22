@@ -1,5 +1,4 @@
 import { Action, ActionPanel, List, Icon, confirmAlert, showToast, Alert, Toast } from "@raycast/api";
-import { useAtom } from "../store";
 import {
   $environments,
   $currentEnvironmentId,
@@ -9,6 +8,7 @@ import {
 } from "../store/environments";
 import { EnvironmentForm } from "./environment-form";
 import { VariableForm } from "./variable-form";
+import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 
 function EnvironmentDropdown() {
   const { value: environments } = useAtom($environments);
