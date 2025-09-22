@@ -1,9 +1,10 @@
-import { Action, ActionPanel, List, Icon, confirmAlert, Alert } from "@raycast/api";
+import { Action, ActionPanel, List, Icon, confirmAlert, Alert, Clipboard } from "@raycast/api";
 import { decksAtom, deleteCard } from "~/decks";
 import { GlobalActions } from "~/components/glabl-actions";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { CardForm } from "~/views/card-form";
 import { getCardDetailMarkdown } from "~/templates/card-info-template";
+import { importCardsIntoDeck } from "~/decks/store";
 
 function CommonActions({ deckId }: { deckId: string }) {
   return (
@@ -13,6 +14,14 @@ function CommonActions({ deckId }: { deckId: string }) {
         icon={Icon.Plus}
         shortcut={{ modifiers: ["cmd"], key: "n" }}
         target={<CardForm deckId={deckId} />}
+      />
+      <Action
+        title={`Import cards from clipboard`}
+        icon={Icon.PlusTopRightSquare}
+        onAction={async () => {
+          const string = await Clipboard.readText();
+          if (string) importCardsIntoDeck(deckId, string);
+        }}
       />
       <GlobalActions />
     </>

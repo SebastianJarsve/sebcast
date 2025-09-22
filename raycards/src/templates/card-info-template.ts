@@ -9,10 +9,10 @@ export function getCardDetailMarkdown(card: Card): string {
   return `
 # Front
 ---
-${card.front}
+${card.front.split("\n")[0]}
 
 # Back
 ---
-${card.back}
+${card.back.split("\n")[0]}
 `;
 }

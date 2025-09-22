@@ -2,10 +2,11 @@ import { randomUUID } from "crypto";
 import { persistentAtom } from "@sebastianjarsve/persistent-atom";
 import { createRaycastFileAdapter } from "~/lib/adapters";
 import { showToast } from "@raycast/api";
-import { DecksSchema } from "./schemas";
+import { CardFormSchema, DecksSchema } from "./schemas";
 import type { Card, CardFormData, Deck } from "./types";
 import { calculateSrsParameters, FeedbackQuality } from "~/lib/srs";
-
+import { logger } from "~/lib/logger";
+import { z } from "zod";
 // --- ATOM DEFINITIONS ---
 
 const initialDecks: Deck[] = [];
@@ -122,7 +123,7 @@ export async function addCard(deckId: string, cardData: CardFormData) {
   const isDuplicate = parentDeck.cards.some((card) => card.front.trim().toLowerCase() === normalizedFront);
 
   if (isDuplicate) {
-    throw new Error("A card with this front already exists in this deck.");
+    throw new Error("[ExistingCardError] A card with this front already exists in this deck.");
   }
 
   const newCard: Card = {
@@ -218,4 +219,32 @@ export function updateCardAfterReview(deckId: string, cardId: string, quality: F
   });
 
   decksAtom.set(updatedDecks);
+}
+
+export async function importCardsIntoDeck(deckId: string, cardsDataString: string) {
+  let cards: unknown;
+  try {
+    cards = JSON.parse(cardsDataString);
+  } catch (e) {
+    logger.error(`Unable to import cards to deck ${deckId}`, e);
+    return;
+  }
+
+  if (!Array.isArray(cards)) {
+    logger.error("Parsed JSON is not an array", cards);
+    return;
+  }
+
+  for (const card of cards) {
+    try {
+      const parsedCard = CardFormSchema.parse(card);
+      await addCard(deckId, parsedCard); // <-- await so rejections are caught
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("[ExistingCardError]")) {
+        logger.info("Skipping existing card...");
+        continue;
+      }
+      logger.error(`An error occurred for this card`, { card, error });
+    }
+  }
 }

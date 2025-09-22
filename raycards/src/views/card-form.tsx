@@ -1,4 +1,4 @@
-import { Form, ActionPanel, Action, useNavigation, showToast, Toast, Icon } from "@raycast/api";
+import { Form, ActionPanel, Action, useNavigation, showToast, Toast } from "@raycast/api";
 import { decksAtom, addCard, editCard, CardFormData } from "../decks";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { logger } from "~/lib/logger";
@@ -113,15 +113,16 @@ export function CardForm({ deckId, cardId }: CardFormProps) {
         id="tag-input"
         title="New Tag"
         placeholder="react,"
-        info="Type tag here, end with comma"
+        info="Type a tag here, end with comma or space."
         value={tagInput}
-        onChange={(newValue) => {
-          if (newValue.trim().endsWith(",")) {
+        onChange={(value) => {
+          const newValue = value.trim();
+          if (newValue.endsWith(",") || newValue.endsWith(" ")) {
             handleProcessTagInput();
             setTagInput("");
             return;
           }
-          setTagInput(newValue);
+          setTagInput(value);
         }}
       />
     </Form>
