@@ -7,6 +7,7 @@ import { GlobalActions } from "./components/glabl-actions";
 import { CardForm } from "./views/card-form";
 import CardListView from "./views/card-list-view";
 import ReviewSession from "./views/review-session";
+import { getTotalDueCardsCount } from "./decks/store";
 
 function CommonActions() {
   return <GlobalActions />;
@@ -15,11 +16,12 @@ function CommonActions() {
 export default function Command() {
   // Subscribe to the atom to get deck data
   const { value: decks, isHydrated: isDecksHydrated } = useAtom(decksAtom);
+  const totalDueCards = getTotalDueCardsCount();
 
   return (
     <List
       isLoading={!isDecksHydrated}
-      navigationTitle="RayCards Decks"
+      navigationTitle={`RayCards Decks (${totalDueCards} Due)`}
       searchBarPlaceholder="Search your decks..."
       actions={
         <ActionPanel>

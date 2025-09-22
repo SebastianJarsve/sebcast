@@ -57,6 +57,15 @@ export function getDueCardsCount(deck: Deck) {
   return getDueCards(deck).length;
 }
 
+/**
+ * A selector that counts how many cards in a all your decks that are due.
+ */
+export function getTotalDueCardsCount() {
+  return decksAtom.get().reduce((total, deck) => {
+    return total + getDueCardsCount(deck);
+  }, 0);
+}
+
 // --- ACTIONS ---
 
 export async function addDeck(name: string) {
