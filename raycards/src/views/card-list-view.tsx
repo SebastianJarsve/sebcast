@@ -61,6 +61,8 @@ export default function CardListView({ deckId }: { deckId: string }) {
                   <List.Item.Detail.Metadata.Label title="Ease Factor" text={card.easeFactor.toFixed(2)} />
                   <List.Item.Detail.Metadata.Separator />
                   <List.Item.Detail.Metadata.Label title="Repetitions" text={`${card.repetition}`} />
+                  <List.Item.Detail.Metadata.Separator />
+                  <List.Item.Detail.Metadata.Label title="Date added" text={`${new Date(card.dateAdded)}`} />
                 </List.Item.Detail.Metadata>
               }
             />

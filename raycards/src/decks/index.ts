@@ -10,7 +10,13 @@ export {
   getDueCardsCount,
   getTotalDueCardsCount,
   updateCardAfterReview,
+  getAllHistoryEntries,
+  getAllUniqueTags,
+  getCardMaturityStats,
+  getDeckAndCardCounts,
+  getReviewStats,
+  importCardsIntoDeck,
 } from "./store";
-export { CardSchema, DeckSchema, DecksSchema, CardFormSchema } from "./schemas";
+export { CardSchema, DeckSchema, DecksSchema, CardFormSchema, ReviewHistorySchema } from "./schemas";
 
-export type { Deck, Card, CardFormData } from "./types";
+export type { Deck, Card, CardFormData, ReviewHistory } from "./types";

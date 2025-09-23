@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CardSchema, DeckSchema, CardFormSchema } from "./schemas";
+import { CardSchema, DeckSchema, CardFormSchema, ReviewHistorySchema } from "./schemas";
 
 /**
  * ## Inferred TypeScript Types
@@ -9,3 +9,4 @@ import { CardSchema, DeckSchema, CardFormSchema } from "./schemas";
 export type Card = z.infer<typeof CardSchema>;
 export type Deck = z.infer<typeof DeckSchema>;
 export type CardFormData = z.infer<typeof CardFormSchema>;
+export type ReviewHistory = z.infer<typeof ReviewHistorySchema>;

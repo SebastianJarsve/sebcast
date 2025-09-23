@@ -1,7 +1,6 @@
 import { Action, ActionPanel, Alert, confirmAlert, Icon, List } from "@raycast/api";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { decksAtom, deleteDeck } from "~/decks";
-import { getDueCardsCount } from "~/decks";
 import { DeckForm } from "./views/deck-form";
 import { GlobalActions } from "./components/glabl-actions";
 import { CardForm } from "./views/card-form";
@@ -30,7 +29,7 @@ export default function Command() {
       }
     >
       {decks.map((deck) => {
-        const dueCards = getDueCards(deck);
+        const dueCards = getDueCards(deck, { shuffle: true });
         const dueCount = dueCards.length;
 
         return (

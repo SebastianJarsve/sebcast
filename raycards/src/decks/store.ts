@@ -3,7 +3,7 @@ import { persistentAtom } from "@sebastianjarsve/persistent-atom";
 import { createRaycastFileAdapter } from "~/lib/adapters";
 import { showToast } from "@raycast/api";
 import { CardFormSchema, DecksSchema } from "./schemas";
-import type { Card, CardFormData, Deck } from "./types";
+import type { Card, CardFormData, Deck, ReviewHistory } from "./types";
 import { calculateSrsParameters, FeedbackQuality } from "~/lib/srs";
 import { logger } from "~/lib/logger";
 // --- ATOM DEFINITIONS ---
@@ -33,16 +33,16 @@ export const decksAtom = persistentAtom<Deck[]>(initialDecks, {
  * @param deck The deck to check.
  *
  * @param options An object to configure the output.
- * @param options.sort If true, the returned cards will be shuffled.
+ * @param options.shuffle If true, the returned cards will be shuffled.
  */
-export function getDueCards(deck: Deck, options: { sort?: boolean } = {}): Card[] {
+export function getDueCards(deck: Deck, options: { shuffle?: boolean } = {}): Card[] {
   const now = new Date();
   now.setHours(23, 59, 59, 999);
 
   const dueCards = deck.cards.filter((card) => new Date(card.nextReviewDate) <= now);
 
   // Conditionally sort the array
-  if (options.sort) {
+  if (options.shuffle) {
     return dueCards.sort(() => Math.random() - 0.5);
   }
 
@@ -87,10 +87,91 @@ export function getAllUniqueTags(): string[] {
   return uniqueTags.sort();
 }
 
+// --- History Selectors
+
+/**
+ * A selector that gathers all review history entries from all cards into a single flat array.
+ */
+export function getAllHistoryEntries(): ReviewHistory[] {
+  const allDecks = decksAtom.get();
+  return allDecks.flatMap((deck) =>
+    deck.cards
+      .map((card) =>
+        card.reviewHistory.map((review) => ({
+          ...review,
+          deckId: deck.id,
+          cardId: card.id,
+        })),
+      )
+      .flat(),
+  );
+}
+
+/**
+ * Gets the total number of decks and cards.
+ */
+export function getDeckAndCardCounts() {
+  const decks = decksAtom.get();
+  const cardCount = decks.reduce((sum, deck) => sum + deck.cards.length, 0);
+  return {
+    deckCount: decks.length,
+    cardCount: cardCount,
+  };
+}
+
+/**
+ * Calculates review counts for today and the last 7 days.
+ */
+export function getReviewStats() {
+  const history = getAllHistoryEntries(); // Assumes getAllHistoryEntries exists
+  const now = new Date();
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const weekStart = new Date();
+  weekStart.setDate(now.getDate() - 7);
+  weekStart.setHours(0, 0, 0, 0);
+
+  const reviewsToday = history.filter((h) => new Date(h.date) >= todayStart).length;
+  const reviewsThisWeek = history.filter((h) => new Date(h.date) >= weekStart).length;
+
+  return { reviewsToday, reviewsThisWeek };
+}
+
+/**
+ * Calculates the maturity breakdown of all cards.
+ */
+export function getCardMaturityStats() {
+  const allCards = decksAtom.get().flatMap((deck) => deck.cards);
+
+  const stats = {
+    new: 0,
+    learning: 0,
+    mature: 0,
+  };
+
+  for (const card of allCards) {
+    if (card.repetition === 0) {
+      stats.new++;
+    } else if (card.interval < 21) {
+      stats.learning++;
+    } else {
+      stats.mature++;
+    }
+  }
+
+  return stats;
+}
 // --- ACTIONS ---
 
 export async function addDeck(name: string) {
-  const newDeck: Deck = { id: randomUUID(), name, cards: [] };
+  const newDeck: Deck = {
+    id: randomUUID(),
+    name,
+    cards: [],
+    dateAdded: new Date().toISOString(),
+  };
   await decksAtom.setAndFlush([...decksAtom.get(), newDeck]);
 }
 
@@ -134,6 +215,8 @@ export async function addCard(deckId: string, cardData: CardFormData) {
     ...cardData,
     id: randomUUID(),
     deckId,
+    dateAdded: new Date().toISOString(),
+    reviewHistory: [],
     // Default SRS parameters for a new card
     repetition: 0,
     interval: 1,
@@ -212,8 +295,15 @@ export async function updateCardAfterReview(deckId: string, cardId: string, qual
         if (card.id === cardId) {
           // Calculate the new SRS parameters based on the review quality
           const newSrsParams = calculateSrsParameters(card, quality);
+
+          const newHistoryEntry: ReviewHistory = {
+            date: new Date().toISOString(),
+            quality,
+          };
+          const updatedHistory = [...card.reviewHistory, newHistoryEntry];
+
           // Return a new card object with the updated parameters
-          return { ...card, ...newSrsParams };
+          return { ...card, ...newSrsParams, reviewHistory: updatedHistory };
         }
         return card;
       });
