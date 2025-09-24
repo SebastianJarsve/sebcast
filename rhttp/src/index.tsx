@@ -12,6 +12,7 @@ import { $currentEnvironment } from "~/store/environments";
 import { GlobalActions } from "~/components/actions";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { DEFAULT_COLLECTION_NAME } from "~/constants";
+import { generateCurlCommand } from "./utils/curl-to-request";
 
 function CommonActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
   return (
@@ -178,6 +179,12 @@ export default function RequestList() {
                         }
                       }
                     }}
+                  />
+                  <Action.CopyToClipboard
+                    title="Copy as cURL"
+                    icon={Icon.Terminal}
+                    content={generateCurlCommand(request, currentCollection!)}
+                    shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
                   />
                   <CommonActions currentCollection={currentCollection} />
                   <Action

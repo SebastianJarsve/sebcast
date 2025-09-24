@@ -94,12 +94,7 @@ function handleSetCookieHeaders(response: AxiosResponse) {
   }
 }
 
-// --- MAIN REQUEST FUNCTION ---
-
-/**
- * The single, powerful function to execute a request.
- */
-export async function runRequest(request: NewRequest, collection: Collection) {
+export function prepareRequest(request: NewRequest, collection: Collection) {
   const variables = resolveVariables();
 
   const baseUrl = variables.baseUrl; // Get baseUrl from the environment
@@ -114,13 +109,13 @@ export async function runRequest(request: NewRequest, collection: Collection) {
   }
 
   // Substitute placeholders in COLLECTION headers
-  const finalCollectionHeaders =
+  const collectionHeaders =
     collection.headers?.map(({ key, value }) => ({
       key: substitutePlaceholders(key, variables) ?? "",
       value: substitutePlaceholders(value, variables) ?? "",
     })) ?? [];
 
-  const finalHeaders =
+  const headers =
     request.headers?.map(({ key, value }) => ({
       key: substitutePlaceholders(key, variables) ?? "",
       value: substitutePlaceholders(value, variables) ?? "",
@@ -132,16 +127,29 @@ export async function runRequest(request: NewRequest, collection: Collection) {
   const finalGqlVariables = substitutePlaceholders(request.variables, variables);
 
   const cookieHeader = prepareCookieHeader(finalUrl);
-  const mergedHeaders = {
-    ...headersArrayToObject(finalCollectionHeaders),
-    ...headersArrayToObject(finalHeaders),
+  const finalHeaders: Record<string, string> = {
     ...cookieHeader,
+    ...headersArrayToObject(collectionHeaders),
+    ...headersArrayToObject(headers),
   };
 
+  return { finalBody, finalParams, finalGqlQuery, finalGqlVariables, finalHeaders, finalUrl };
+}
+
+// --- MAIN REQUEST FUNCTION ---
+
+/**
+ * The single, powerful function to execute a request.
+ */
+export async function runRequest(request: NewRequest, collection: Collection) {
+  const { finalBody, finalGqlQuery, finalGqlVariables, finalParams, finalUrl, finalHeaders } = prepareRequest(
+    request,
+    collection,
+  );
   try {
     const config: AxiosRequestConfig = {
       url: finalUrl,
-      headers: mergedHeaders,
+      headers: finalHeaders,
       method: request.method === "GRAPHQL" ? "POST" : request.method,
 
       // 2. NOW, parse the substituted strings as JSON

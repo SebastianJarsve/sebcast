@@ -1,5 +1,6 @@
 // src/utils.ts
-import { NewRequest, Headers } from "~/types";
+import { NewRequest, Headers, Collection } from "~/types";
+import { prepareRequest } from ".";
 
 /**
  * Parses a cURL command string and converts it into a NewRequest object.
@@ -64,4 +65,77 @@ export function parseCurlToRequest(curl: string): NewRequest | null {
     console.error("Failed to parse cURL command:", error);
     return null;
   }
+}
+
+/**
+ * Converts a request object into a cURL command string.
+ */
+export function generateCurlCommand(request: NewRequest, collection: Collection): string {
+  const { finalUrl, finalHeaders, finalBody, finalParams, finalGqlQuery, finalGqlVariables } = prepareRequest(
+    request,
+    collection,
+  );
+
+  let commandUrl = finalUrl;
+
+  // If there are params (for a GET request), convert them to a query string
+  if (finalParams) {
+    try {
+      const paramsObject = JSON.parse(finalParams);
+      const queryString = new URLSearchParams(paramsObject).toString();
+      if (queryString) {
+        commandUrl += `?${queryString}`;
+      }
+    } catch (e) {
+      // Silently ignore invalid JSON in params for cURL generation
+    }
+  }
+
+  // The method for the cURL command should be POST for GraphQL
+  const curlMethod = request.method === "GRAPHQL" ? "POST" : request.method;
+
+  // ENSURE CONTENT-TYPE IS SET FOR GRAPHQL ---
+  if (request.method === "GRAPHQL") {
+    // Check if a content-type header already exists (case-insensitive)
+    const hasContentType = Object.keys(finalHeaders).some((k) => k.toLowerCase() === "content-type");
+    if (!hasContentType) {
+      finalHeaders["Content-Type"] = "application/json";
+    }
+  }
+
+  // Start building the command with the potentially updated URL
+  let curl = `curl --location --request ${curlMethod} '${commandUrl}'`; // Add headers
+  for (const [key, value] of Object.entries(finalHeaders)) {
+    curl += ` \\\n  --header '${key}: ${value}'`;
+  }
+
+  // Add body
+  // Conditionally handle the body based on its type
+  if (request.method === "GRAPHQL") {
+    try {
+      const gqlPayload = {
+        query: finalGqlQuery,
+        variables: finalGqlVariables ? JSON.parse(finalGqlVariables) : undefined,
+      };
+      // Escape single quotes in the final JSON string
+      const gqlBody = JSON.stringify(gqlPayload).replace(/'/g, "'\\''");
+      curl += ` \\\n  --data-raw '${gqlBody}'`;
+    } catch (e) {
+      /* ignore invalid JSON */
+    }
+  } else if (request.bodyType === "FORM_DATA" && finalBody) {
+    try {
+      const pairs: { key: string; value: string }[] = JSON.parse(finalBody);
+      for (const pair of pairs) {
+        // Use the -F flag for each form data field
+        curl += ` \\\n  -F '${pair.key}=${pair.value}'`;
+      }
+    } catch (e) {
+      // Ignore if the body is not a valid JSON array of pairs
+    }
+  } else if (finalBody) {
+    // The existing logic for raw/JSON bodies
+    curl += ` \\\n  --data-raw '${finalBody}'`;
+  }
+  return curl;
 }
