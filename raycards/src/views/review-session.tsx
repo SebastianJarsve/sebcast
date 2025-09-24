@@ -58,7 +58,7 @@ export default function ReviewSession({ dueCards, name, total }: Props) {
     setIsAnswerShown(false);
   };
 
-  const markdownContent = isAnswerShown ? getCardDetailMarkdown(currentCard) : `## Front\n---\n${currentCard.front}`;
+  const markdownContent = isAnswerShown ? getCardDetailMarkdown(currentCard) : `# Front\n---\n${currentCard.front}`;
 
   return (
     <Detail
@@ -68,12 +68,6 @@ export default function ReviewSession({ dueCards, name, total }: Props) {
         !isAnswerShown ? (
           <ActionPanel>
             <Action title="Show Answer" icon={Icon.Eye} onAction={() => setIsAnswerShown(true)} />
-            <Action.Push
-              title="Edit card"
-              icon={Icon.Pencil}
-              shortcut={{ modifiers: ["cmd"], key: "e" }}
-              target={<CardForm deckId={currentCard.deckId} cardId={currentCard.id} />}
-            />
           </ActionPanel>
         ) : (
           <ActionPanel title="How well did you remember?">

@@ -22,6 +22,7 @@ export function GlobalActions() {
       />
       <Action
         title="Import deck from clipboard"
+        icon={Icon.Download}
         onAction={async () => {
           const string = await Clipboard.readText();
           if (string) {

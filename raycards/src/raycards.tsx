@@ -50,7 +50,7 @@ export default function Command() {
             actions={
               <ActionPanel>
                 <ActionPanel.Section title={`Deck: ${deck.name}`}>
-                  <Action.Push title="Browse Cards" icon={Icon.Pencil} target={<CardListView deckId={deck.id} />} />
+                  <Action.Push title="Browse Cards" icon={Icon.List} target={<CardListView deckId={deck.id} />} />
                   <Action.Push
                     title="Start Review Session"
                     icon={Icon.Play}
@@ -58,7 +58,7 @@ export default function Command() {
                   />
                   <Action.Push
                     title="Add New Card"
-                    icon={Icon.Plus}
+                    icon={Icon.PlusCircle}
                     shortcut={{ modifiers: ["cmd"], key: "n" }}
                     target={<CardForm deckId={deck.id} />}
                   />
