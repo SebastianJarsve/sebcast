@@ -193,7 +193,7 @@ export async function runRequest(request: NewRequest, collection: Collection) {
         requestMethod: request.method,
         status: response.status,
         statusText: response.statusText,
-        headers: response.headers as Record<string, string>,
+        headers: { ...response.headers } as Record<string, string>,
         body: response.data,
       };
       addHistoryEntry(request, responseData);

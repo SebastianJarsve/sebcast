@@ -1,6 +1,6 @@
 import { Color } from "@raycast/api";
 
-export const MAX_JSON_LENGTH = 30000;
+export const MAX_JSON_LENGTH = 5000;
 
 export const COMMON_HEADER_KEYS = [
   "A-IM",

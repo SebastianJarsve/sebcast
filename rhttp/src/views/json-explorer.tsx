@@ -1,4 +1,4 @@
-import { List, ActionPanel, Action, environment, showToast, Toast } from "@raycast/api";
+import { List, ActionPanel, Action, environment, showToast, Toast, Icon } from "@raycast/api";
 import { useEffect, useMemo, useState } from "react";
 import fs from "fs/promises";
 import { join } from "path";
@@ -6,132 +6,102 @@ import { join } from "path";
 type Path = (string | number)[];
 
 export type JSONExplorerProps = {
-  /** Either pass a parsed value… */
+  /** A pre-parsed JavaScript object/array */
   data?: unknown;
-  /** …or a raw JSON string (will be parsed). If invalid, it will be shown under { raw: "…" }. */
+  /** A raw JSON string (the component will parse it). */
   json?: string;
   title?: string;
-  pageSize?: number; // default 200
-  previewLimit?: number; // default 4000 chars
-  initialHighlight?: boolean; // default true
-  startPath?: Path; // optional initial location
+  pageSize?: number;
+  previewLimit?: number;
 };
+
+/* ---------- Main Component ---------- */
 
 export function JSONExplorer({
   data,
   json,
-  title = "JSON",
-  pageSize = 200,
+  title = "JSON Explorer",
+  pageSize = 20,
   previewLimit = 4000,
-  initialHighlight = true,
-  startPath = [],
 }: JSONExplorerProps) {
   const root = useMemo(() => {
     if (json !== undefined) {
       try {
         return JSON.parse(json);
       } catch {
-        return { raw: json }; // still browsable
+        return { Error: "Invalid JSON string provided.", raw: json };
       }
     }
     return data;
   }, [json, data]);
-
-  const [path, setPath] = useState<Path>(startPath);
+  const [path, setPath] = useState<Path>([]);
   const [page, setPage] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
-  const [highlight, setHighlight] = useState(initialHighlight);
+  const [selectedId, setSelectedId] = useState<string | undefined>();
 
-  // Current node at this path
   const node = useMemo(() => getNode(root, path), [root, path]);
-
-  // Build a paged list of children (NO stringify here)
   const { rows, total } = useMemo(() => listChildrenPaged(node, page, pageSize), [node, page, pageSize]);
-
-  // Selected row
-  const selectedRow = useMemo(() => rows.find((r) => r.id === selectedId) ?? rows[0], [rows, selectedId]);
-
-  // Compute preview ONLY for selected row (stringify once)
+  const onPrev = () => {
+    setPage((x) => Math.max(0, x - 1));
+    // 3. Reset the selection when the page changes
+    setTimeout(() => {
+      if (pages > 1) setSelectedId("next-page");
+      else setSelectedId("back-action");
+    }, 50);
+  };
+  const onNext = () => {
+    setPage((x) => Math.min(pages - 1, x + 1));
+    // 3. Reset the selection when the page changes
+    setTimeout(() => {
+      setSelectedId("prev-page");
+    }, 50);
+  };
+  // Optimized preview logic
   const [preview, setPreview] = useState<string>("");
   useEffect(() => {
-    if (!selectedRow) {
-      setPreview("");
+    const rowToPreview = rows.find((r) => r.id === selectedId) ?? rows[0];
+    if (!rowToPreview) {
+      setPreview("Select an item to see its value.");
       return;
     }
-    const value = selectedRow.kind === "child" ? getNode(node, [selectedRow.accessor]) : node;
+    const value = rowToPreview.kind === "child" ? getNode(node, [rowToPreview.accessor]) : node;
+    const stringifiedValue = safeStringify(value);
+    const previewContent =
+      stringifiedValue.length > previewLimit
+        ? stringifiedValue.slice(0, previewLimit) + "\n\n... (truncated)"
+        : stringifiedValue;
+    setPreview(`\`\`\`json\n${previewContent}\n\`\`\``);
+  }, [selectedId, rows, node, previewLimit]);
 
-    const s = safeStringify(value);
-    setPreview(s.length > previewLimit ? s.slice(0, previewLimit) + "\n… (truncated)" : s);
-  }, [selectedRow, node, previewLimit]);
-
-  // Reset paging/selection when path changes
   useEffect(() => {
     setPage(0);
     setSelectedId(undefined);
   }, [path.join("/")]);
 
-  const fence = highlight ? "```json" : "```text";
   const breadcrumb = "/" + (path.length ? path.map(String).join("/") : "");
   const pages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <List
+      navigationTitle={"Explore JSON" + (pages > 1 ? ` (Page ${page + 1} of ${pages})` : "")}
       isShowingDetail
-      searchBarPlaceholder={`${title} — ${breadcrumb || "/"}  (page ${page + 1}/${pages})`}
+      searchBarPlaceholder={`Browse ${title} — ${breadcrumb}`}
       onSelectionChange={(id) => setSelectedId(id ?? undefined)}
-      selectedItemId={selectedId}
+      selectedItemId={selectedId ?? undefined}
       throttle
-      filtering
     >
-      {/* Up one level */}
       {path.length > 0 && (
         <List.Item
-          id=".."
+          id="back-action"
           title=".."
           subtitle="Up one level"
-          accessories={[{ tag: breadcrumb || "/" }]}
-          detail={<List.Item.Detail markdown="Go up one level" />}
           actions={
             <ActionPanel>
-              <Action
-                title="Up One Level"
-                onAction={() => setPath((p) => p.slice(0, -1))}
-                shortcut={{ modifiers: [], key: "backspace" }}
-              />
-              <Action
-                title="Up One Level"
-                onAction={() => setPath((p) => p.slice(0, -1))}
-                shortcut={{ modifiers: [], key: "escape" }}
-              />
-              <Action
-                title="Up One Level"
-                onAction={() => setPath((p) => p.slice(0, -1))}
-                shortcut={{ modifiers: ["cmd"], key: "[" }}
-              />
+              <BackActions canGoUp onBack={() => setPath((p) => p.slice(0, -1))} />
+              {pages > 1 && <PaginationActions page={page} pages={pages} onNext={onNext} onPrev={onPrev} />}
             </ActionPanel>
           }
         />
       )}
-
-      {/* Value-only view when primitive or empty */}
-      {rows.length === 0 && (
-        <List.Item
-          id="(value)"
-          title="(value)"
-          subtitle={typeOf(node)}
-          detail={<List.Item.Detail markdown={`${fence}\n${preview}\n\`\`\``} />}
-          actions={
-            <ActionPanel>
-              <BackActions canGoUp={path.length > 0} onBack={() => setPath((p) => p.slice(0, -1))} />
-              <Action.CopyToClipboard title="Copy Value" content={preview} />
-              <SaveSelectedAction value={node} />
-              <ToggleHighlightAction onToggle={() => setHighlight((v) => !v)} />
-            </ActionPanel>
-          }
-        />
-      )}
-
-      {/* Children for this page */}
       {rows.map((r) => (
         <List.Item
           key={r.id}
@@ -139,45 +109,58 @@ export function JSONExplorer({
           title={r.label}
           subtitle={r.type}
           accessories={r.meta ? [{ tag: r.meta }] : undefined}
-          detail={<List.Item.Detail markdown={`${fence}\n${preview}\n\`\`\``} />}
+          detail={<List.Item.Detail markdown={preview} />}
           actions={
             <ActionPanel>
-              {r.canDrill && (
-                <Action
-                  title="Open Node"
-                  onAction={() => setPath((p) => [...p, r.accessor])}
-                  shortcut={{ modifiers: [], key: "enter" }}
-                />
-              )}
+              {r.canDrill && <Action title="Open Node" onAction={() => setPath((p) => [...p, r.accessor])} />}
               <BackActions canGoUp={path.length > 0} onBack={() => setPath((p) => p.slice(0, -1))} />
+              <Action.CopyToClipboard title="Copy Node" content={safeStringify(node)} />
               <Action.CopyToClipboard title="Copy Preview" content={preview} />
               <SaveSelectedAction value={getNode(node, [r.accessor])} />
-              <ToggleHighlightAction onToggle={() => setHighlight((v) => !v)} />
-              <PaginationActions
-                page={page}
-                pages={pages}
-                onPrev={() => setPage((x) => Math.max(0, x - 1))}
-                onNext={() => setPage((x) => Math.min(pages - 1, x + 1))}
-              />
+              <PaginationActions page={page} pages={pages} onPrev={onPrev} onNext={onNext} />
             </ActionPanel>
           }
         />
       ))}
+      {/*
+      {pages > 1 && page > 0 && (
+        <List.Section title={`Page ${page + 1} of ${pages}`}>
+          <List.Item
+            id="prev-page"
+            title="... Previous Page"
+            icon={Icon.ArrowUp}
+            actions={
+              <ActionPanel>
+                <Action title="Go to Previous Page" onAction={onPrev} />
+              </ActionPanel>
+            }
+          />
+        </List.Section>
+      )}
+      {pages > 1 && page < pages - 1 && (
+        <List.Section title={`Page ${page + 1} of ${pages}`}>
+          <List.Item
+            id="next-page"
+            title="Next Page ..."
+            icon={Icon.ArrowDown}
+            actions={
+              <ActionPanel>
+                <Action title="Go to Next Page" onAction={onNext} />
+              </ActionPanel>
+            }
+          />
+        </List.Section>
+      )}
+      */}
     </List>
   );
 }
 
 /* ---------- Actions (small components) ---------- */
 
-function BackActions({ canGoUp, onBack }: { canGoUp: boolean; onBack: () => void }) {
+function BackActions({ onBack, canGoUp }: { canGoUp?: boolean; onBack: () => void }) {
   if (!canGoUp) return null;
-  return (
-    <>
-      <Action title="Up One Level" onAction={onBack} shortcut={{ modifiers: [], key: "backspace" }} />
-      <Action title="Up One Level" onAction={onBack} shortcut={{ modifiers: [], key: "escape" }} />
-      <Action title="Up One Level" onAction={onBack} shortcut={{ modifiers: ["cmd"], key: "[" }} />
-    </>
-  );
+  return <Action title="Up One Level" onAction={onBack} shortcut={{ modifiers: [], key: "backspace" }} />;
 }
 
 function PaginationActions({
@@ -191,29 +174,12 @@ function PaginationActions({
   onPrev: () => void;
   onNext: () => void;
 }) {
+  if (pages <= 1) return null;
   return (
-    <>
-      <Action
-        title={`Previous Page (${page}/${pages})`}
-        onAction={onPrev}
-        shortcut={{ modifiers: ["cmd"], key: "{" }}
-      />
-      <Action
-        title={`Next Page (${page + 1}/${pages})`}
-        onAction={onNext}
-        shortcut={{ modifiers: ["cmd"], key: "}" }}
-      />
-    </>
-  );
-}
-
-function ToggleHighlightAction({ onToggle }: { onToggle: () => void }) {
-  return (
-    <Action
-      title="Toggle Syntax Highlighting"
-      onAction={onToggle}
-      shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
-    />
+    <ActionPanel.Section title={`Page ${page} of ${pages}`}>
+      <Action title="Previous Page" onAction={onPrev} shortcut={{ modifiers: [], key: "pageUp" }} />
+      <Action title="Next Page" onAction={onNext} shortcut={{ modifiers: [], key: "pageDown" }} />
+    </ActionPanel.Section>
   );
 }
 
@@ -221,11 +187,12 @@ function SaveSelectedAction({ value }: { value: unknown }) {
   return (
     <Action
       title="Save Node to File"
+      icon={Icon.Download}
       onAction={async () => {
         const s = safeStringify(value);
         const p = join(environment.supportPath, `json-node-${Date.now()}.json`);
         await fs.writeFile(p, s, "utf8");
-        await showToast({ style: Toast.Style.Success, title: "Saved", message: p });
+        await showToast({ style: Toast.Style.Success, title: "Saved Node to File", message: p });
       }}
     />
   );
@@ -234,7 +201,7 @@ function SaveSelectedAction({ value }: { value: unknown }) {
 /* ---------- Helpers ---------- */
 
 function getNode(current: unknown, path: Path): any {
-  return path.reduce((acc: any, seg) => (acc && typeof acc === "object" ? (acc as any)[seg] : undefined), current);
+  return path.reduce((acc: any, seg) => (acc && typeof acc === "object" ? acc[seg] : undefined), current);
 }
 
 function listChildrenPaged(node: unknown, page: number, pageSize: number) {
@@ -243,18 +210,38 @@ function listChildrenPaged(node: unknown, page: number, pageSize: number) {
 
   if (Array.isArray(node)) {
     const total = node.length;
-    const slice = Array.from({ length: Math.max(0, Math.min(end, total) - start) }, (_, i) => start + i);
+    const slice = Array.from({ length: Math.min(end, total) - start }, (_, i) => start + i);
     const rows = slice.map((idx) => {
-      const v = (node as any[])[idx];
+      const v = node[idx];
       const t = typeOf(v);
       return {
         id: String(idx),
         label: String(idx),
-        accessor: idx as number,
+        accessor: idx,
+        type: t,
+        meta: t === "array" ? `${v.length} items` : t === "object" ? `${Object.keys(v ?? {}).length} keys` : undefined,
+        canDrill: t === "array" || t === "object",
+        kind: "child" as const,
+      };
+    });
+    return { rows, total };
+  }
+
+  if (node && typeof node === "object") {
+    const keys = Object.keys(node);
+    const total = keys.length;
+    const slice = keys.slice(start, end);
+    const rows = slice.map((k) => {
+      const v = (node as Record<string, unknown>)[k];
+      const t = typeOf(v);
+      return {
+        id: k,
+        label: k,
+        accessor: k,
         type: t,
         meta:
           t === "array"
-            ? `${(v as any[])?.length ?? 0} items`
+            ? `${(v as any[]).length} items`
             : t === "object"
               ? `${Object.keys(v ?? {}).length} keys`
               : undefined,
@@ -265,50 +252,7 @@ function listChildrenPaged(node: unknown, page: number, pageSize: number) {
     return { rows, total };
   }
 
-  if (node && typeof node === "object") {
-    let i = 0;
-    const rows: any[] = [];
-    for (const k in node as Record<string, unknown>) {
-      if (!Object.prototype.hasOwnProperty.call(node, k)) continue;
-      if (i >= start && i < end) {
-        const v = (node as Record<string, unknown>)[k];
-        const t = typeOf(v);
-        rows.push({
-          id: k,
-          label: k,
-          accessor: k,
-          type: t,
-          meta:
-            t === "array"
-              ? `${(v as any[])?.length ?? 0} items`
-              : t === "object"
-                ? `${Object.keys(v ?? {}).length} keys`
-                : undefined,
-          canDrill: t === "array" || t === "object",
-          kind: "child" as const,
-        });
-      }
-      i++;
-    }
-    const total = i;
-    return { rows, total };
-  }
-
-  // Primitive: single synthetic row (lets you still copy/save)
-  return {
-    rows: [
-      {
-        id: "(value)",
-        label: "(value)",
-        accessor: 0,
-        type: typeOf(node),
-        meta: undefined,
-        canDrill: false,
-        kind: "self" as const,
-      },
-    ],
-    total: 1,
-  };
+  return { rows: [], total: 0 };
 }
 
 function typeOf(v: unknown) {
@@ -321,7 +265,6 @@ function safeStringify(v: unknown) {
   try {
     return JSON.stringify(v, null, 2);
   } catch {
-    // Handle cycles gracefully
     const seen = new WeakSet();
     return JSON.stringify(
       v,
