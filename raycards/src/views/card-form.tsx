@@ -14,9 +14,10 @@ interface CardFormProps {
    * Optional card ID. When provided the form is in edit mode.
    */
   cardId?: string;
+  initialValues?: Partial<CardFormData>; // For pre-filling a new card
 }
 
-export function CardForm({ deckId, cardId }: CardFormProps) {
+export function CardForm({ deckId, cardId, initialValues }: CardFormProps) {
   const { pop } = useNavigation();
   const { value: decks, isHydrated } = useAtom(decksAtom);
 
@@ -25,6 +26,8 @@ export function CardForm({ deckId, cardId }: CardFormProps) {
   const parentDeck = decks.find((d) => d.id === deckId);
   const cardToEdit = isEditMode ? parentDeck?.cards.find((c) => c.id === cardId) : undefined;
 
+  const [front, setFront] = useState(initialValues?.front || cardToEdit?.front || "");
+  const [back, setBack] = useState(initialValues?.back || cardToEdit?.back || "");
   const [selectedTags, setSelectedTags] = useState<string[]>(
     cardToEdit?.tags || (parentDeck?.name ? [parentDeck?.name.toLowerCase()] : []),
   );
@@ -89,7 +92,7 @@ export function CardForm({ deckId, cardId }: CardFormProps) {
         id="front"
         title="Front"
         placeholder="e.g., What is a React Hook?"
-        defaultValue={cardToEdit?.front || ""}
+        defaultValue={front || ""}
         enableMarkdown
         info="Markdown is enabled"
       />
@@ -97,7 +100,7 @@ export function CardForm({ deckId, cardId }: CardFormProps) {
         id="back"
         title="Back"
         placeholder="e.g., A function that lets you hook into React state and lifecycle features from function components."
-        defaultValue={cardToEdit?.back || ""}
+        defaultValue={back || ""}
         enableMarkdown
         info="Markdown is enabled"
       />

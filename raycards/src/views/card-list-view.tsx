@@ -75,6 +75,23 @@ export default function CardListView({ deckId }: { deckId: string }) {
                   icon={Icon.Pencil}
                   target={<CardForm deckId={deck.id} cardId={card.id} />}
                 />
+                <Action.Push
+                  title="Create Reversed Card"
+                  icon={Icon.Switch}
+                  shortcut={{ modifiers: ["cmd"], key: "r" }}
+                  target={
+                    <CardForm
+                      deckId={deck.id}
+                      initialValues={{
+                        // Swap front and back
+                        front: card.back.split("\n")[0], // Use first line of back
+                        back: card.front,
+                        // Copy tags and add #reversed
+                        tags: [...new Set([...card.tags, "reversed"])],
+                      }}
+                    />
+                  }
+                />
                 <Action
                   title="Delete Card"
                   icon={Icon.Trash}
