@@ -17,6 +17,15 @@ export {
   getReviewStats,
   importCardsIntoDeck,
 } from "./store";
-export { CardSchema, DeckSchema, DecksSchema, CardFormSchema, ReviewHistorySchema } from "./schemas";
 
-export type { Deck, Card, CardFormData, ReviewHistory } from "./types";
+export {
+  CardSchema,
+  DeckSchema,
+  DecksSchema,
+  CardFormSchema,
+  ReviewHistorySchema,
+  ExportCardSchema,
+  ExportDeckSchema,
+} from "./schemas";
+
+export type { Deck, Card, CardFormData, ReviewHistory, ExportCard, ExportDeck } from "./types";

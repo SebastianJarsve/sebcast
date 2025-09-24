@@ -2,10 +2,11 @@ import { randomUUID } from "crypto";
 import { persistentAtom } from "@sebastianjarsve/persistent-atom";
 import { createRaycastFileAdapter } from "~/lib/adapters";
 import { showToast } from "@raycast/api";
-import { CardFormSchema, DecksSchema } from "./schemas";
-import type { Card, CardFormData, Deck, ReviewHistory } from "./types";
+import { AddDeckSchema, CardFormSchema, DeckSchema, DecksSchema, ExportDeckSchema } from "./schemas";
+import type { Card, CardFormData, Deck, ExportDeck, ReviewHistory } from "./types";
 import { calculateSrsParameters, FeedbackQuality } from "~/lib/srs";
 import { logger } from "~/lib/logger";
+
 // --- ATOM DEFINITIONS ---
 
 const initialDecks: Deck[] = [];
@@ -25,6 +26,22 @@ export const decksAtom = persistentAtom<Deck[]>(initialDecks, {
     }
   },
 });
+
+// --- HELPERS ---
+function createFullCardObject(cardData: CardFormData, deckId: string): Card {
+  return {
+    ...cardData,
+    id: randomUUID(),
+    deckId: deckId,
+    dateAdded: new Date().toISOString(),
+    reviewHistory: [],
+    // Default SRS parameters
+    repetition: 0,
+    interval: 1,
+    easeFactor: 2.5,
+    nextReviewDate: new Date().toISOString(),
+  };
+}
 
 // --- SELECTORS ---
 
@@ -211,18 +228,7 @@ export async function addCard(deckId: string, cardData: CardFormData) {
     throw new Error("[ExistingCardError] A card with this front already exists in this deck.");
   }
 
-  const newCard: Card = {
-    ...cardData,
-    id: randomUUID(),
-    deckId,
-    dateAdded: new Date().toISOString(),
-    reviewHistory: [],
-    // Default SRS parameters for a new card
-    repetition: 0,
-    interval: 1,
-    easeFactor: 2.5,
-    nextReviewDate: new Date().toISOString(),
-  };
+  const newCard: Card = createFullCardObject(cardData, deckId);
 
   const updatedDecks = currentDecks.map((deck) => {
     if (deck.id === deckId) {
@@ -317,6 +323,7 @@ export async function updateCardAfterReview(deckId: string, cardId: string, qual
 
 export async function importCardsIntoDeck(deckId: string, cardsDataString: string) {
   let cards: unknown;
+  const deck = decksAtom.get().find((d) => d.id === deckId);
   try {
     cards = JSON.parse(cardsDataString);
   } catch (e) {
@@ -332,6 +339,9 @@ export async function importCardsIntoDeck(deckId: string, cardsDataString: strin
   for (const card of cards) {
     try {
       const parsedCard = CardFormSchema.parse(card);
+      if (parsedCard.tags.length === 0 && deck?.name) {
+        parsedCard.tags.push(deck.name.toLocaleLowerCase());
+      }
       await addCard(deckId, parsedCard); // <-- await so rejections are caught
     } catch (error) {
       if (error instanceof Error && error.message.startsWith("[ExistingCardError]")) {
@@ -340,5 +350,33 @@ export async function importCardsIntoDeck(deckId: string, cardsDataString: strin
       }
       logger.error(`An error occurred for this card`, { card, error });
     }
+  }
+}
+
+export function exportDeck(deck: Deck) {
+  const cleanDeck = ExportDeckSchema.parse(deck);
+  return JSON.stringify(cleanDeck, null, 2);
+}
+
+export async function importDeck(deckJsonString: string) {
+  let deck: unknown;
+  try {
+    deck = JSON.parse(deckJsonString);
+  } catch (error) {
+    logger.error("Import failed: The provided text is not valid JSON.");
+    throw new Error("Import failed: The provided text is not valid JSON.");
+  }
+  const parsedDeck = AddDeckSchema.safeParse(deck);
+  if (parsedDeck.success) {
+    const newDeckId = randomUUID();
+    const newDeck: Deck = {
+      id: newDeckId,
+      dateAdded: new Date().toISOString(),
+      name: parsedDeck.data.name,
+      cards: parsedDeck.data.cards.map((c) => createFullCardObject(c, newDeckId)),
+    };
+    await decksAtom.setAndFlush([...decksAtom.get(), newDeck]);
+  } else {
+    throw new Error("Import failed: The JSON is not a valid deck format.");
   }
 }

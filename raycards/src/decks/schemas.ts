@@ -45,8 +45,28 @@ export const DeckSchema = z.object({
   dateAdded: z.string().datetime().describe("Thes ISO 8604 datetime string for when the deck was added to the deck."),
 });
 
+export const AddDeckSchema = z.object({
+
+  name: z.string().min(1, "The deck name cannot be empty."),
+  cards: z.array(CardFormSchema),
+});
+
 /**
  * ## All decks schema
  * Schema for how we are storing all decks.
  */
 export const DecksSchema = z.array(DeckSchema);
+
+// A schema for a card with only its core content
+export const ExportCardSchema = CardSchema.pick({
+  front: true,
+  back: true,
+  tags: true,
+});
+
+// A schema for a deck with its name and an array of clean cards
+export const ExportDeckSchema = DeckSchema.pick({
+  name: true,
+}).extend({
+  cards: z.array(ExportCardSchema),
+});

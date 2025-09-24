@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Alert, confirmAlert, Icon, List } from "@raycast/api";
+import { Action, ActionPanel, Alert, Clipboard, confirmAlert, Icon, List, showToast, Toast } from "@raycast/api";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { decksAtom, deleteDeck } from "~/decks";
 import { DeckForm } from "./views/deck-form";
@@ -6,7 +6,7 @@ import { GlobalActions } from "./components/glabl-actions";
 import { CardForm } from "./views/card-form";
 import CardListView from "./views/card-list-view";
 import ReviewSession from "./views/review-session";
-import { getDueCards, getTotalDueCardsCount } from "./decks/store";
+import { exportDeck, getDueCards, getTotalDueCardsCount } from "./decks/store";
 
 function CommonActions() {
   return <GlobalActions />;
@@ -83,6 +83,15 @@ export default function Command() {
                       ) {
                         deleteDeck(deck.id);
                       }
+                    }}
+                  />
+                  <Action
+                    title="Export Deck to Clipboard"
+                    icon={Icon.Clipboard}
+                    onAction={() => {
+                      const jsonString = exportDeck(deck);
+                      Clipboard.copy(jsonString);
+                      showToast({ style: Toast.Style.Success, title: "Deck copied to clipboard!" });
                     }}
                   />
                 </ActionPanel.Section>
