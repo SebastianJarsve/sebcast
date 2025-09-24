@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Clipboard, Icon, showToast, Toast } from "@raycast/api";
+import { Action, ActionPanel, Clipboard, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { $currentCollection, createCollection } from "../store";
 import { $currentEnvironment, $currentEnvironmentId, $environments } from "../store/environments";
 import { ManageVariablesList } from "../views/manage-variables-list";
@@ -6,6 +6,8 @@ import { HistoryView } from "../views/history-list-view";
 import { $isHistoryEnabled } from "../store/settings";
 import { newCollectionSchema } from "../types";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { parseCurlToRequest } from "~/utils/curl-to-request";
+import { RequestForm } from "~/views/request-form";
 
 function SelectEnvironmentMenu() {
   const { value: currentEnvironment } = useAtom($currentEnvironment);
@@ -30,6 +32,7 @@ function SelectEnvironmentMenu() {
 export function GlobalActions() {
   const { value: isHistoryEnabled } = useAtom($isHistoryEnabled);
   const { value: currentCollection } = useAtom($currentCollection);
+  const { push } = useNavigation();
   return (
     <>
       <ActionPanel.Section title="Environment">
@@ -103,6 +106,34 @@ export function GlobalActions() {
           }}
         />
       </ActionPanel.Section>
+      <Action
+        title="New Request from cURL"
+        icon={Icon.Clipboard}
+        onAction={async () => {
+          if (!currentCollection) {
+            await showToast({ style: Toast.Style.Failure, title: "No Collection Selected" });
+            return;
+          }
+          try {
+            const clipboardText = await Clipboard.readText();
+            if (!clipboardText?.startsWith("curl")) {
+              throw new Error("Clipboard does not contain a cURL command.");
+            }
+            const parsedRequest = parseCurlToRequest(clipboardText);
+            if (!parsedRequest) {
+              throw new Error("Could not parse the cURL command.");
+            }
+            // Push the form, pre-filled with the parsed data
+            push(<RequestForm collectionId={currentCollection.id} request={parsedRequest} />);
+          } catch (error) {
+            await showToast({
+              style: Toast.Style.Failure,
+              title: "Import Failed",
+              message: String(error),
+            });
+          }
+        }}
+      />
     </>
   );
 }

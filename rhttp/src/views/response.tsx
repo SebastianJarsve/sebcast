@@ -1,12 +1,12 @@
 // src/views/ResponseView.tsx
 import { Action, ActionPanel, Color, Detail, Icon, open, showToast, Toast, useNavigation } from "@raycast/api";
-import { METHODS } from "../constants";
-import { Method, NewRequest, Request, ResponseData } from "../types";
+import { METHODS } from "~/constants";
+import { NewRequest, Request, ResponseData } from "~/types";
 import { useEffect, useState } from "react";
 import path from "path";
 import { randomUUID } from "crypto";
 import fs from "fs/promises";
-import { addHistoryEntry } from "../store/history";
+import { addHistoryEntry } from "~/store/history";
 import { z } from "zod";
 import { ErrorDetail } from "./error-view";
 

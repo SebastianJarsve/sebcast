@@ -10,7 +10,14 @@ export const $environments = persistentAtom<Environment[]>([], {
   key: "env",
   serialize: (data) => JSON.stringify(environmentsSchema.parse(data)),
   deserialize: (raw) => {
-    return environmentsSchema.parse(JSON.parse(raw));
+    let data: unknown;
+    try {
+      data = JSON.parse(raw);
+      return environmentsSchema.parse(data);
+    } catch (e) {
+      console.log(e);
+      return [];
+    }
   },
 });
 

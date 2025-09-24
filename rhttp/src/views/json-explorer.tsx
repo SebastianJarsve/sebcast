@@ -1,4 +1,3 @@
-// JSONExplorer.tsx
 import { List, ActionPanel, Action, environment, showToast, Toast } from "@raycast/api";
 import { useEffect, useMemo, useState } from "react";
 import fs from "fs/promises";
@@ -18,7 +17,7 @@ export type JSONExplorerProps = {
   startPath?: Path; // optional initial location
 };
 
-export default function JSONExplorer({
+export function JSONExplorer({
   data,
   json,
   title = "JSON",

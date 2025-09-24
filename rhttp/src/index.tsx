@@ -20,7 +20,7 @@ function CommonActions({ currentCollection: currentCollection }: { currentCollec
           key={"new-request"}
           title="New Request"
           shortcut={{ modifiers: ["cmd"], key: "n" }}
-          target={<RequestForm collectionId={currentCollection.id} />}
+          target={<RequestForm collectionId={currentCollection.id} request={{}} />}
         />
       )}
       {currentCollection && (
@@ -115,7 +115,7 @@ export default function () {
                     key={"edit-request"}
                     title="Open request"
                     icon={Icon.Pencil}
-                    target={<RequestForm collectionId={currentCollection.id} requestId={request.id} />}
+                    target={<RequestForm collectionId={currentCollection.id} request={request} />}
                     shortcut={{ modifiers: ["cmd"], key: "e" }}
                   />
                   <Action

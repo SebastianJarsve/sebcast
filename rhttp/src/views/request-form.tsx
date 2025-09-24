@@ -1,6 +1,6 @@
 // RequestForm.tsx
 import { Action, ActionPanel, Clipboard, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { NewRequest, Request, Headers, Method, ResponseAction } from "../types";
 import { $collections, $currentCollection, createRequest, updateRequest } from "../store";
 import { COMMON_HEADER_KEYS, METHODS } from "../constants"; // Assuming you have a constants file for METHODS etc.
@@ -17,7 +17,8 @@ import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 
 interface RequestFormProps {
   collectionId: string;
-  requestId?: string;
+  // requestId?: string;
+  request: Partial<Request>;
 }
 
 function CopyVariableAction() {
@@ -48,22 +49,24 @@ function CopyVariableAction() {
   );
 }
 
-export function RequestForm({ collectionId, requestId: initialRequestId }: RequestFormProps) {
+export function RequestForm({ collectionId, request: initialRequest }: RequestFormProps) {
   const { push } = useNavigation();
   const { value: collections } = useAtom($collections);
   const { value: currentCollection } = useAtom($currentCollection);
   const { value: currentEnvironment } = useAtom($currentEnvironment);
+  console.log(initialRequest);
 
   // Find the parent collection and the specific request to edit (if any)
-  const [request] = useState<Request | NewRequest | undefined>(() => {
-    if (initialRequestId) {
-      const collection = collections.find((c) => c.id === collectionId);
-      return collection?.requests.find((r) => r.id === initialRequestId);
-    }
-    return { method: "GET", url: "", headers: [], bodyType: "NONE" } as NewRequest; // Blank slate for a new request
-  });
+  // const [request] = useState<Request | NewRequest | undefined>(() => {
+  //   if (initialRequest.id) {
+  //     const collection = collections.find((c) => c.id === collectionId);
+  //     return collection?.requests.find((r) => r.id === initialRequest.id);
+  //   }
+  //   return { method: "GET", url: "", headers: [], bodyType: "NONE" } as NewRequest; // Blank slate for a new request
+  // });
+  const request = initialRequest;
   // 1. Create an internal state to track the ID. It starts with the prop.
-  const [currentRequestId, setCurrentRequestId] = useState(initialRequestId);
+  const [currentRequestId, setCurrentRequestId] = useState(initialRequest.id);
   const [isSaving, setIsSaving] = useState(false);
 
   // Local state for form fields, initialized from the request data
@@ -201,10 +204,6 @@ export function RequestForm({ collectionId, requestId: initialRequestId }: Reque
                 style={Action.Style.Destructive}
                 onAction={() => {
                   if (activeIndex === null) return;
-
-                  const newFocusIndex = activeIndex > 0 ? activeIndex - 1 : 0;
-
-                  const newHeaders = headers.filter((_, i) => i !== activeIndex);
                   setHeaders(headers.filter((_, i) => i !== activeIndex));
                   setActiveIndex(null);
                   showToast({ style: Toast.Style.Success, title: "Header Removed" });

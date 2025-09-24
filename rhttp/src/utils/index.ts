@@ -1,10 +1,10 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import https from "https";
-import { Collection, ParsedCookie, parsedCookieSchema, NewRequest, ResponseData } from "./types";
-import { $cookies, addParsedCookie } from "./store/cookies";
-import { $currentEnvironmentId, $environments, saveVariableToActiveEnvironment } from "./store/environments";
-import { $isHistoryEnabled } from "./store/settings";
-import { addHistoryEntry } from "./store/history";
+import { Collection, ParsedCookie, parsedCookieSchema, NewRequest, ResponseData } from "~/types";
+import { $cookies, addParsedCookie } from "~/store/cookies";
+import { $currentEnvironmentId, $environments, saveVariableToActiveEnvironment } from "~/store/environments";
+import { $isHistoryEnabled } from "~/store/settings";
+import { addHistoryEntry } from "~/store/history";
 
 /**
  * Parses a raw "Set-Cookie" header string into our structured ParsedCookie type.
