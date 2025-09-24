@@ -1,6 +1,6 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import https from "https";
-import { Collection, ParsedCookie, parsedCookieSchema, NewRequest, ResponseData } from "~/types";
+import { Collection, ParsedCookie, parsedCookieSchema, NewRequest, Request, ResponseData } from "~/types";
 import { $cookies, addParsedCookie } from "~/store/cookies";
 import { $currentEnvironmentId, $environments, saveVariableToActiveEnvironment } from "~/store/environments";
 import { $isHistoryEnabled } from "~/store/settings";
@@ -112,11 +112,20 @@ export async function runRequest(request: NewRequest, collection: Collection) {
   } else if (requestUrl?.startsWith("/") && baseUrl) {
     finalUrl = `${baseUrl.replace(/\/$/, "")}${requestUrl}`;
   }
+
+  // Substitute placeholders in COLLECTION headers
+  const finalCollectionHeaders =
+    collection.headers?.map(({ key, value }) => ({
+      key: substitutePlaceholders(key, variables) ?? "",
+      value: substitutePlaceholders(value, variables) ?? "",
+    })) ?? [];
+
   const finalHeaders =
     request.headers?.map(({ key, value }) => ({
       key: substitutePlaceholders(key, variables) ?? "",
       value: substitutePlaceholders(value, variables) ?? "",
     })) ?? [];
+
   const finalBody = substitutePlaceholders(request.body, variables);
   const finalParams = substitutePlaceholders(request.params, variables);
   const finalGqlQuery = substitutePlaceholders(request.query, variables);
@@ -124,7 +133,7 @@ export async function runRequest(request: NewRequest, collection: Collection) {
 
   const cookieHeader = prepareCookieHeader(finalUrl);
   const mergedHeaders = {
-    ...headersArrayToObject(collection.headers),
+    ...headersArrayToObject(finalCollectionHeaders),
     ...headersArrayToObject(finalHeaders),
     ...cookieHeader,
   };
@@ -196,7 +205,7 @@ export async function runRequest(request: NewRequest, collection: Collection) {
         headers: { ...response.headers } as Record<string, string>,
         body: response.data,
       };
-      addHistoryEntry(request, responseData);
+      addHistoryEntry(request, responseData, "id" in request ? (request as unknown as Request).id : undefined);
     }
 
     return response;

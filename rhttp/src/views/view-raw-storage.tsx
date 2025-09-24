@@ -1,14 +1,3 @@
-// import { Detail } from "@raycast/api";
-
-// import { Store } from "..";
-
-// function RawStorageView({ store }: { store: Store }) {
-//   const data = JSON.stringify(store.collections.value, null, 2);
-//   return <Detail markdown={`${data}`} />;
-// }
-
-// export { RawStorageView };
-
 import { List, ActionPanel, Action, environment } from "@raycast/api";
 import { useEffect, useMemo, useState } from "react";
 import fs from "fs/promises";
@@ -247,7 +236,7 @@ function safeStringify(v: unknown) {
     const seen = new WeakSet();
     return JSON.stringify(
       v,
-      (key, val) => {
+      (_, val) => {
         if (typeof val === "object" && val !== null) {
           if (seen.has(val)) return "[Circular]";
           seen.add(val);

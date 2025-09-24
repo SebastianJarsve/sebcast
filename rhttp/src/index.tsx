@@ -1,16 +1,17 @@
 import { Action, ActionPanel, Alert, confirmAlert, Icon, List, showToast, Toast, useNavigation } from "@raycast/api";
 import { $collections, $currentCollection, $currentCollectionId, deleteCollection, deleteRequest } from "./store";
-import { CollectionForm } from "./views/collection-form";
-import { RequestForm } from "./views/request-form";
-import { Collection, environmentsSchema } from "./types";
-import { runRequest } from "./utils";
-import { ResponseView } from "./views/response";
+import { CollectionForm } from "~/views/collection-form";
+import { RequestForm } from "~/views/request-form";
+import { Collection } from "~/types";
+import { runRequest } from "~/utils";
+import { ResponseView } from "~/views/response";
 import axios from "axios";
-import { ErrorDetail } from "./views/error-view";
+import { ErrorDetail } from "~/views/error-view";
 import { z } from "zod";
-import { $currentEnvironment, $environments } from "./store/environments";
-import { GlobalActions } from "./components/global-actions";
+import { $currentEnvironment } from "~/store/environments";
+import { GlobalActions } from "~/components/actions";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { DEFAULT_COLLECTION_NAME } from "~/constants";
 
 function CommonActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
   return (
@@ -21,14 +22,16 @@ function CommonActions({ currentCollection: currentCollection }: { currentCollec
           title="New Request"
           shortcut={{ modifiers: ["cmd"], key: "n" }}
           target={<RequestForm collectionId={currentCollection.id} request={{}} />}
+          icon={Icon.PlusCircle}
         />
       )}
-      {currentCollection && (
+      {currentCollection && currentCollection.title !== DEFAULT_COLLECTION_NAME && (
         <Action.Push
           key={"edit-request"}
           title="Edit Collection"
           shortcut={{ modifiers: ["cmd", "shift"], key: "e" }}
           target={<CollectionForm collectionId={currentCollection.id} />}
+          icon={Icon.Pencil}
         />
       )}
       <Action.Push
@@ -36,6 +39,7 @@ function CommonActions({ currentCollection: currentCollection }: { currentCollec
         title="Create Collection"
         shortcut={{ modifiers: ["cmd", "shift"], key: "n" }}
         target={<CollectionForm />}
+        icon={Icon.PlusTopRightSquare}
       />
       {currentCollection && (
         <Action
@@ -64,17 +68,12 @@ function CommonActions({ currentCollection: currentCollection }: { currentCollec
 export function CollectionDropdown() {
   const { value: collections } = useAtom($collections);
   const { value: currentId } = useAtom($currentCollectionId);
-  const { value } = useAtom($environments);
-  const t = environmentsSchema.parse(value);
 
   return (
     <List.Dropdown
       tooltip="Select Collection"
       value={currentId ?? undefined} // Use the ID from the store
-      onChange={(newValue) => {
-        // 2. Update the global store directly. This is the key!
-        $currentCollectionId.set(newValue);
-      }}
+      onChange={(newValue) => $currentCollectionId.set(newValue)}
     >
       <List.Dropdown.Section title="Collections">
         {collections.map((c) => {
@@ -85,10 +84,9 @@ export function CollectionDropdown() {
   );
 }
 
-export default function () {
+export default function RequestList() {
   const { value: currentCollection } = useAtom($currentCollection);
   const { value: currentEnvironment } = useAtom($currentEnvironment);
-  const { value: allEnvironments } = useAtom($environments);
   const { push } = useNavigation();
 
   return (
@@ -114,7 +112,7 @@ export default function () {
                   <Action.Push
                     key={"edit-request"}
                     title="Open request"
-                    icon={Icon.Pencil}
+                    icon={Icon.ChevronRight}
                     target={<RequestForm collectionId={currentCollection.id} request={request} />}
                     shortcut={{ modifiers: ["cmd"], key: "e" }}
                   />
@@ -135,7 +133,7 @@ export default function () {
                         push(
                           <ResponseView
                             sourceRequestId={request.id}
-                            request={request}
+                            requestSnapshot={request}
                             response={{
                               requestMethod: request.method,
                               status: response.status,
@@ -146,14 +144,13 @@ export default function () {
                           />,
                         );
                       } catch (error) {
-                        // Check if it's an Axios error with a response from the server
                         if (axios.isAxiosError(error) && error.response) {
                           // This is an API error (e.g., 404, 500). Show the detailed view.
                           toast.hide();
                           push(
                             <ResponseView
                               sourceRequestId={request.id}
-                              request={request}
+                              requestSnapshot={request}
                               response={{
                                 requestMethod: request.method,
                                 status: error.response.status,
@@ -182,6 +179,7 @@ export default function () {
                       }
                     }}
                   />
+                  <CommonActions currentCollection={currentCollection} />
                   <Action
                     title="Delete Request"
                     icon={Icon.Trash}
@@ -200,9 +198,7 @@ export default function () {
                       }
                     }}
                   />
-                  <ActionPanel.Section title="Global Actions" key={"global-actions-section"}>
-                    <CommonActions currentCollection={currentCollection} />
-                  </ActionPanel.Section>
+
                   <GlobalActions />
                 </ActionPanel>
               }

@@ -8,6 +8,8 @@ import { z } from "zod";
 import { ErrorDetail } from "./error-view";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { KeyValueEditor } from "../components/key-value-editor";
+import { COMMON_HEADER_KEYS } from "~/constants";
+import { CopyVariableAction, GlobalActions } from "~/components/actions";
 
 interface CollectionFormProps {
   collectionId?: string;
@@ -93,13 +95,21 @@ export function CollectionForm({ collectionId }: CollectionFormProps) {
               shortcut={{ modifiers: ["ctrl"], key: "h" }}
             />
           )}
+          <CopyVariableAction />
+          <GlobalActions />
         </ActionPanel>
       }
     >
       <Form.TextField id="title" title="Title" placeholder="My API Collection" defaultValue={collection.title} />
       <Form.Separator />
 
-      <KeyValueEditor pairs={headers} onPairsChange={setHeaders} onActiveIndexChange={setActiveIndex} title="Headers" />
+      <KeyValueEditor
+        pairs={headers}
+        onPairsChange={setHeaders}
+        onActiveIndexChange={setActiveIndex}
+        title="Headers"
+        commonKeys={COMMON_HEADER_KEYS}
+      />
     </Form>
   );
 }

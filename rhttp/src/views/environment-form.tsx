@@ -1,4 +1,3 @@
-// src/views/EnvironmentForm.tsx
 import { Action, ActionPanel, Form, showToast, Toast, useNavigation } from "@raycast/api";
 import { $environments, createEnvironment, updateEnvironment } from "../store/environments";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
@@ -15,7 +14,6 @@ export function EnvironmentForm({ environmentId }: EnvironmentFormProps) {
   async function handleSubmit(values: { name: string }) {
     const newName = values.name.trim();
 
-    // --- THIS IS THE NEW VALIDATION LOGIC ---
     // Check if another environment (with a different ID) already has this name.
     const isNameTaken = environments.some(
       (env) => env.name.toLowerCase() === newName.toLowerCase() && env.id !== environmentId,

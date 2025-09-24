@@ -1,16 +1,15 @@
 // src/views/ResponseView.tsx
-import { Action, ActionPanel, Color, Detail, Icon, open, showToast, Toast, useNavigation } from "@raycast/api";
+import { Action, ActionPanel, Color, Detail, Icon, open, showToast } from "@raycast/api";
 import { randomUUID } from "crypto";
 import fs from "fs/promises";
 import path from "path";
-import { z } from "zod";
 import { MAX_JSON_LENGTH, METHODS } from "~/constants";
 
 import { addHistoryEntry } from "~/store/history";
 import { NewRequest, ResponseData } from "~/types";
 
 import { JSONExplorer } from "./json-explorer";
-const os = require("os");
+import os from "os";
 
 export interface ResponseViewProps {
   requestSnapshot: NewRequest;
@@ -19,8 +18,6 @@ export interface ResponseViewProps {
 }
 
 export function ResponseView({ requestSnapshot, sourceRequestId, response }: ResponseViewProps) {
-  const { push } = useNavigation();
-
   function getStatusColor(status: number) {
     if (status >= 500) return Color.Red;
     if (status >= 400) return Color.Red;

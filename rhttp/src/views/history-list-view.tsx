@@ -21,6 +21,7 @@ import { ErrorDetail } from "./error-view";
 import { z } from "zod";
 import { METHODS } from "../constants";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useMemo } from "react";
 
 // Helper function to get a color for the status code accessory
 function getStatusAccessory(status: number): List.Item.Accessory {
@@ -52,6 +53,16 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
 
   const navigationTitle = filterByRequestId ? "Run History for Request" : "Request History";
 
+  const requestCollectionMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const collection of collections) {
+      for (const request of collection.requests) {
+        map.set(request.id, collection.title);
+      }
+    }
+    return map;
+  }, [collections]);
+
   return (
     <List
       navigationTitle={navigationTitle}
@@ -63,7 +74,6 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
             style={Action.Style.Destructive}
             shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
             onAction={async () => {
-              console.log("clear all?");
               if (
                 await confirmAlert({
                   title: "Clear All History?",
@@ -82,141 +92,147 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
       {history.length === 0 ? (
         <List.EmptyView title="No History Found" description="Run some requests to see their history here." />
       ) : (
-        history.map((entry: HistoryEntry) => (
-          <List.Item
-            key={entry.id}
-            title={entry.requestSnapshot.title ?? entry.requestSnapshot.url}
-            subtitle={new Date(entry.createdAt).toLocaleString()}
-            accessories={[getMethodAccessory(entry.requestSnapshot.method), getStatusAccessory(entry.response.status)]}
-            actions={
-              <ActionPanel>
-                <Action.Push
-                  title="View Full Response"
-                  icon={Icon.Eye}
-                  target={
-                    <ResponseView
-                      request={entry.requestSnapshot}
-                      sourceRequestId={entry.sourceRequestId}
-                      response={entry.response}
-                    />
-                  }
-                />
-                <Action
-                  title="Re-run Request"
-                  icon={Icon.Bolt}
-                  onAction={async () => {
-                    const toast = await showToast({ style: Toast.Style.Animated, title: "Re-running request..." });
-
-                    // 1. Find the original collection to get its context (e.g., global headers)
-                    const sourceCollection = collections.find((c) =>
-                      c.requests.some((r) => r.id === entry.sourceRequestId),
-                    );
-
-                    if (!sourceCollection) {
-                      toast.style = Toast.Style.Failure;
-                      toast.title = "Failed to Re-run";
-                      toast.message = "Original collection could not be found.";
-                      return;
+        history.map((entry: HistoryEntry) => {
+          const collectionName = !!entry.sourceRequestId ? requestCollectionMap.get(entry.sourceRequestId) : null;
+          const subtitle = `${collectionName ?? "Unsaved Request"} | ${new Date(entry.createdAt).toLocaleString()}`;
+          return (
+            <List.Item
+              key={entry.id}
+              title={entry.requestSnapshot.title || entry.requestSnapshot.url}
+              subtitle={subtitle}
+              accessories={[
+                getMethodAccessory(entry.requestSnapshot.method),
+                getStatusAccessory(entry.response.status),
+              ]}
+              actions={
+                <ActionPanel>
+                  <Action.Push
+                    title="View Full Response"
+                    icon={Icon.Eye}
+                    target={
+                      <ResponseView
+                        requestSnapshot={entry.requestSnapshot}
+                        sourceRequestId={entry.sourceRequestId}
+                        response={entry.response}
+                      />
                     }
+                  />
+                  <Action
+                    title="Re-run Request"
+                    icon={Icon.Bolt}
+                    onAction={async () => {
+                      const toast = await showToast({ style: Toast.Style.Animated, title: "Re-running request..." });
 
-                    try {
-                      // 2. Re-run the request using the snapshot and the original collection
-                      const response = await runRequest(entry.requestSnapshot, sourceCollection);
-                      toast.hide();
-
-                      const responseData: ResponseData = {
-                        requestMethod: entry.requestSnapshot.method,
-                        status: response.status,
-                        statusText: response.statusText,
-                        headers: response.headers as Record<string, string>,
-                        body: response.data,
-                      };
-
-                      push(
-                        <ResponseView
-                          request={entry.requestSnapshot}
-                          sourceRequestId={entry.sourceRequestId}
-                          response={responseData}
-                        />,
+                      // 1. Find the original collection to get its context (e.g., global headers)
+                      const sourceCollection = collections.find((c) =>
+                        c.requests.some((r) => r.id === entry.sourceRequestId),
                       );
-                    } catch (error) {
-                      // 3. Handle errors just like our other run actions
-                      toast.hide();
-                      if (axios.isAxiosError(error) && error.response) {
+
+                      if (!sourceCollection) {
+                        toast.style = Toast.Style.Failure;
+                        toast.title = "Failed to Re-run";
+                        toast.message = "Original collection could not be found.";
+                        return;
+                      }
+
+                      try {
+                        // 2. Re-run the request using the snapshot and the original collection
+                        const response = await runRequest(entry.requestSnapshot, sourceCollection);
+                        toast.hide();
+
+                        const responseData: ResponseData = {
+                          requestMethod: entry.requestSnapshot.method,
+                          status: response.status,
+                          statusText: response.statusText,
+                          headers: response.headers as Record<string, string>,
+                          body: response.data,
+                        };
+
                         push(
                           <ResponseView
+                            requestSnapshot={entry.requestSnapshot}
                             sourceRequestId={entry.sourceRequestId}
-                            request={entry.requestSnapshot}
-                            response={{
-                              requestMethod: entry.requestSnapshot.method,
-                              status: error.response.status,
-                              statusText: error.response.statusText,
-                              headers: error.response.headers as Record<string, string>,
-                              body: error.response.data,
-                            }}
+                            response={responseData}
                           />,
                         );
-                      } else if (error instanceof z.ZodError) {
+                      } catch (error) {
+                        // 3. Handle errors just like our other run actions
                         toast.hide();
-                        // This is a validation error from our schema -> Show the ErrorDetail view
-                        push(<ErrorDetail error={error} />);
-                      } else if (axios.isAxiosError(error) && error.code === "ENOTFOUND") {
-                        // This is a DNS/network error, which often means a VPN isn't connected.
-                        toast.style = Toast.Style.Failure;
-                        toast.title = "Host Not Found";
-                        toast.message = "Check your internet or VPN connection.";
-                      } else {
-                        // This is a network error (e.g., connection refused) or another issue.
-                        // For these, a toast is appropriate.
-                        toast.style = Toast.Style.Failure;
-                        toast.title = "Request Failed";
-                        toast.message = String(error);
-                      }
-                    }
-                  }}
-                />
-                <Action
-                  title="Delete Entry"
-                  icon={Icon.Trash}
-                  style={Action.Style.Destructive}
-                  shortcut={{ modifiers: ["ctrl"], key: "x" }}
-                  onAction={async () => {
-                    if (
-                      await confirmAlert({
-                        title: "Delete Entry?",
-                        primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
-                      })
-                    ) {
-                      deleteHistoryEntry(entry.id);
-                      showToast({ style: Toast.Style.Success, title: "Entry Deleted" });
-                    }
-                  }}
-                />
-                <ActionPanel.Section>
-                  <Action
-                    title="Clear All History"
-                    icon={Icon.Trash}
-                    style={Action.Style.Destructive}
-                    shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
-                    onAction={async () => {
-                      console.log("clear all?");
-                      if (
-                        await confirmAlert({
-                          title: "Clear All History?",
-                          message: "This will permanently delete all saved request entries.",
-                          primaryAction: { title: "Clear History", style: Alert.ActionStyle.Destructive },
-                        })
-                      ) {
-                        clearHistory();
-                        showToast({ title: "History Cleared" });
+                        if (axios.isAxiosError(error) && error.response) {
+                          push(
+                            <ResponseView
+                              sourceRequestId={entry.sourceRequestId}
+                              requestSnapshot={entry.requestSnapshot}
+                              response={{
+                                requestMethod: entry.requestSnapshot.method,
+                                status: error.response.status,
+                                statusText: error.response.statusText,
+                                headers: error.response.headers as Record<string, string>,
+                                body: error.response.data,
+                              }}
+                            />,
+                          );
+                        } else if (error instanceof z.ZodError) {
+                          toast.hide();
+                          // This is a validation error from our schema -> Show the ErrorDetail view
+                          push(<ErrorDetail error={error} />);
+                        } else if (axios.isAxiosError(error) && error.code === "ENOTFOUND") {
+                          // This is a DNS/network error, which often means a VPN isn't connected.
+                          toast.style = Toast.Style.Failure;
+                          toast.title = "Host Not Found";
+                          toast.message = "Check your internet or VPN connection.";
+                        } else {
+                          // This is a network error (e.g., connection refused) or another issue.
+                          // For these, a toast is appropriate.
+                          toast.style = Toast.Style.Failure;
+                          toast.title = "Request Failed";
+                          toast.message = String(error);
+                        }
                       }
                     }}
                   />
-                </ActionPanel.Section>
-              </ActionPanel>
-            }
-          />
-        ))
+                  <Action
+                    title="Delete Entry"
+                    icon={Icon.Trash}
+                    style={Action.Style.Destructive}
+                    shortcut={{ modifiers: ["ctrl"], key: "x" }}
+                    onAction={async () => {
+                      if (
+                        await confirmAlert({
+                          title: "Delete Entry?",
+                          primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
+                        })
+                      ) {
+                        deleteHistoryEntry(entry.id);
+                        showToast({ style: Toast.Style.Success, title: "Entry Deleted" });
+                      }
+                    }}
+                  />
+                  <ActionPanel.Section>
+                    <Action
+                      title="Clear All History"
+                      icon={Icon.Trash}
+                      style={Action.Style.Destructive}
+                      shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
+                      onAction={async () => {
+                        if (
+                          await confirmAlert({
+                            title: "Clear All History?",
+                            message: "This will permanently delete all saved request entries.",
+                            primaryAction: { title: "Clear History", style: Alert.ActionStyle.Destructive },
+                          })
+                        ) {
+                          clearHistory();
+                          showToast({ title: "History Cleared" });
+                        }
+                      }}
+                    />
+                  </ActionPanel.Section>
+                </ActionPanel>
+              }
+            />
+          );
+        })
       )}
     </List>
   );

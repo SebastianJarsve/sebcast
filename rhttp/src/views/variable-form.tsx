@@ -21,7 +21,6 @@ export function VariableForm({ environmentId, variableKey }: VariableFormProps) 
 
   // The 'values' from onSubmit will only contain 'key' if it's a new variable
   async function handleSubmit(values: { key?: string; value?: string; isSecret: boolean }) {
-    console.log(values.isSecret);
     // The key is either the one from the form (new) or the one passed in via props (editing)
     const keyToSave = (variableKey || values.key || "").trim();
     if (!keyToSave) {

@@ -15,7 +15,7 @@ export const $environments = persistentAtom<Environment[]>([], {
       data = JSON.parse(raw);
       return environmentsSchema.parse(data);
     } catch (e) {
-      console.log(e);
+      console.error(e);
       return [];
     }
   },

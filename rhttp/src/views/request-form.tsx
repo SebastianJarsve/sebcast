@@ -1,12 +1,12 @@
 // RequestForm.tsx
-import { Action, ActionPanel, Clipboard, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
-import { useRef, useState } from "react";
+import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
+import { useState } from "react";
 import { NewRequest, Request, Headers, Method, ResponseAction } from "../types";
-import { $collections, $currentCollection, createRequest, updateRequest } from "../store";
+import { $currentCollection, createRequest, updateRequest } from "../store";
 import { COMMON_HEADER_KEYS, METHODS } from "../constants"; // Assuming you have a constants file for METHODS etc.
 import { z } from "zod";
 import { ErrorDetail } from "./error-view";
-import { resolveVariables, runRequest } from "../utils";
+import { runRequest } from "../utils";
 import { ResponseView } from "./response";
 import axios from "axios";
 import { $currentEnvironment } from "../store/environments";
@@ -14,6 +14,7 @@ import { randomUUID } from "crypto";
 import { ResponseActionsEditor } from "../components/response-actions-editor";
 import { KeyValueEditor } from "../components/key-value-editor";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { CopyVariableAction, GlobalActions } from "~/components/actions";
 
 interface RequestFormProps {
   collectionId: string;
@@ -21,65 +22,20 @@ interface RequestFormProps {
   request: Partial<Request>;
 }
 
-function CopyVariableAction() {
-  const resolvedVariables = resolveVariables();
-  const variableKeys = Object.keys(resolvedVariables);
-
-  return (
-    <ActionPanel.Submenu title="Copy Variable" icon={Icon.Key} shortcut={{ modifiers: ["cmd", "shift"], key: "i" }}>
-      {variableKeys.length > 0 ? (
-        variableKeys.map((key) => (
-          <Action
-            key={key}
-            title={key}
-            onAction={async () => {
-              const content = `{{${key}}}`;
-              await Clipboard.copy(content);
-              await showToast({
-                style: Toast.Style.Success,
-                title: "Copied Placeholder",
-              });
-            }}
-          />
-        ))
-      ) : (
-        <Action title="No Variables in Scope" />
-      )}
-    </ActionPanel.Submenu>
-  );
-}
-
 export function RequestForm({ collectionId, request: initialRequest }: RequestFormProps) {
   const { push } = useNavigation();
-  const { value: collections } = useAtom($collections);
   const { value: currentCollection } = useAtom($currentCollection);
   const { value: currentEnvironment } = useAtom($currentEnvironment);
-  console.log(initialRequest);
 
-  // Find the parent collection and the specific request to edit (if any)
-  // const [request] = useState<Request | NewRequest | undefined>(() => {
-  //   if (initialRequest.id) {
-  //     const collection = collections.find((c) => c.id === collectionId);
-  //     return collection?.requests.find((r) => r.id === initialRequest.id);
-  //   }
-  //   return { method: "GET", url: "", headers: [], bodyType: "NONE" } as NewRequest; // Blank slate for a new request
-  // });
   const request = initialRequest;
-  // 1. Create an internal state to track the ID. It starts with the prop.
   const [currentRequestId, setCurrentRequestId] = useState(initialRequest.id);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Local state for form fields, initialized from the request data
   const [method, setMethod] = useState(request?.method);
   const [headers, setHeaders] = useState<Headers>(request?.headers ?? []);
-  // State to track the currently focused header index ---
+
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  // Used to focus the field when a header field is removed.
-  const titleFieldRef = useRef<Form.TextField>(null);
-  // Create a ref to hold an array of refs for each header field
-
-  // 1. Add state for the response actions and the active index
   const [responseActions, setResponseActions] = useState<ResponseAction[]>(request?.responseActions ?? []);
   const [activeActionIndex, setActiveActionIndex] = useState<number | null>(null);
   async function handleSave(values: Omit<Request, "id" | "headers">) {
@@ -129,7 +85,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
       push(
         <ResponseView
           sourceRequestId={currentRequestId}
-          request={requestData}
+          requestSnapshot={requestData}
           response={{
             requestMethod: request.method,
             status: response.status,
@@ -146,7 +102,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         toast.hide();
         push(
           <ResponseView
-            request={requestData}
+            requestSnapshot={requestData}
             response={{
               requestMethod: request.method,
               status: error.response.status,
@@ -235,6 +191,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
               />
             )}
           </ActionPanel.Section>
+          <GlobalActions />
         </ActionPanel>
       }
     >
@@ -260,13 +217,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
           />
         ))}
       </Form.Dropdown>
-      <Form.TextField
-        id="title"
-        title="Title"
-        ref={titleFieldRef}
-        placeholder="e.g., Get All Users"
-        defaultValue={request?.title}
-      />
+      <Form.TextField id="title" title="Title" placeholder="e.g., Get All Users" defaultValue={request?.title} />
       <Form.TextField
         id="url"
         title="URL / Path"

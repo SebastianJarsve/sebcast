@@ -29,7 +29,7 @@ function EnvironmentDropdown() {
   );
 }
 
-function GlobalActions() {
+function CommonActions() {
   const { value: currentEnvironment } = useAtom($currentEnvironment);
   return (
     <>
@@ -39,6 +39,7 @@ function GlobalActions() {
           title="Add variable"
           target={<VariableForm environmentId={currentEnvironment?.id} />}
           shortcut={{ modifiers: ["cmd"], key: "n" }}
+          icon={Icon.PlusCircle}
         />
       )}
 
@@ -46,16 +47,19 @@ function GlobalActions() {
         title="Edit Environment"
         target={<EnvironmentForm environmentId={currentEnvironment?.id} />}
         shortcut={{ modifiers: ["cmd", "shift"], key: "e" }}
+        icon={Icon.Pencil}
       />
       <Action.Push
         title="Create New Environment"
         target={<EnvironmentForm />}
         shortcut={{ modifiers: ["cmd", "shift"], key: "n" }}
+        icon={Icon.PlusTopRightSquare}
       />
       {currentEnvironment && currentEnvironment.name !== "Globals" && (
         <Action
           title="Delete Environment"
           style={Action.Style.Destructive}
+          icon={Icon.Trash}
           onAction={async () => {
             if (
               await confirmAlert({
@@ -86,7 +90,7 @@ export function ManageVariablesList() {
       searchBarAccessory={<EnvironmentDropdown />}
       actions={
         <ActionPanel>
-          <GlobalActions />
+          <CommonActions />
         </ActionPanel>
       }
     >
@@ -100,6 +104,7 @@ export function ManageVariablesList() {
               <Action.Push
                 title="Edit Variable"
                 target={<VariableForm environmentId={currentEnvironment!.id} variableKey={key} />}
+                icon={Icon.Pencil}
               />
               {currentEnvironment && (
                 <Action
@@ -122,8 +127,8 @@ export function ManageVariablesList() {
                 />
               )}
 
-              <ActionPanel.Section title="Global">
-                <GlobalActions />
+              <ActionPanel.Section>
+                <CommonActions />
               </ActionPanel.Section>
             </ActionPanel>
           }

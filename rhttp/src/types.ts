@@ -12,22 +12,6 @@ export type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 
 // --- REUSABLE ZOD SCHEMAS ---
 
-/**
- * A reusable Zod schema for validating that a string contains valid JSON.
- * It uses `superRefine` for precise error messages.
- */
-const jsonStringSchema = z
-  .string()
-  .optional()
-  .superRefine((value, ctx) => {
-    if (!value) return; // Allows for an empty or undefined string.
-    try {
-      JSON.parse(value);
-    } catch (e) {
-      ctx.addIssue({ code: "custom", message: "Must be a valid JSON string" });
-    }
-  });
-
 /** Schema for a single HTTP header (key/value pair). */
 export const headerSchema = z.object({
   key: z.string().min(1, "Header key cannot be empty"),
@@ -72,7 +56,7 @@ export type Cookies = z.infer<typeof cookiesSchema>;
 
 // A schema for a single action to be performed on a response.
 export const responseActionSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   // Where to look for the data in the response
   source: z.enum(["BODY_JSON", "HEADER"]),
   // The path to the data (e.g., "data.token" or "x-auth-token")
@@ -113,7 +97,7 @@ const requestValidation = (data: z.infer<typeof baseRequestSchema>, ctx: z.Refin
   }
 };
 
-export const requestSchema = baseRequestSchema.extend({ id: z.string().uuid() }).superRefine(requestValidation);
+export const requestSchema = baseRequestSchema.extend({ id: z.uuid() }).superRefine(requestValidation);
 export const newRequestSchema = baseRequestSchema.superRefine(requestValidation);
 
 export type Request = z.infer<typeof requestSchema>;
@@ -121,7 +105,7 @@ export type NewRequest = z.infer<typeof newRequestSchema>;
 
 /** Schema for a collection of requests. */
 export const collectionSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   title: z.string(),
   requests: z.array(requestSchema),
   headers: headersSchema,
@@ -143,7 +127,7 @@ export type Variable = z.infer<typeof variableSchema>;
 
 // --- UPDATE THE ENVIRONMENT SCHEMA ---
 export const environmentSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   name: z.string(),
   // Variables are now a record of the new Variable object.
   variables: z.record(z.string(), variableSchema),
@@ -166,7 +150,7 @@ export type ResponseData = z.infer<typeof responseDataSchema>;
 
 // A schema for a single entry in our history log
 export const historyEntrySchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   createdAt: z.coerce.date(),
   requestSnapshot: newRequestSchema, // The original request that was run
   sourceRequestId: z.string().optional(),

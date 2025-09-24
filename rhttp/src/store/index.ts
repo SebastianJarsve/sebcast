@@ -7,6 +7,7 @@ import { createFileAdapter, createLocalStorageAdapter } from "@sebastianjarsve/p
 import path from "path";
 import { environment } from "@raycast/api";
 import { persistentAtom } from "@sebastianjarsve/persistent-atom";
+import { DEFAULT_COLLECTION_NAME } from "~/constants";
 
 export const $collections = persistentAtom<Collection[]>([], {
   storage: createFileAdapter(path.join(environment.supportPath, "collections.json")),
@@ -20,7 +21,7 @@ function createDefaultCollectionObject(): Collection {
   const newId = randomUUID();
   return {
     id: newId,
-    title: "default",
+    title: DEFAULT_COLLECTION_NAME,
     requests: [],
     headers: [],
   };
