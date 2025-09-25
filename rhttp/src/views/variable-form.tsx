@@ -1,4 +1,3 @@
-// src/views/VariableForm.tsx
 import { Action, ActionPanel, Form, showToast, Toast, useNavigation } from "@raycast/api";
 import { $environments, saveVariable } from "../store/environments";
 import { useState } from "react";
