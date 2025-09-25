@@ -14,7 +14,7 @@ import {
 import { $history, deleteHistoryEntry, clearHistory } from "../store/history";
 import { runRequest } from "../utils";
 import { ResponseView } from "./response";
-import { HistoryEntry, Method, ResponseData } from "../types";
+import { Collection, HistoryEntry, Method, ResponseData } from "../types";
 import { $collections } from "../store";
 import axios from "axios";
 import { ErrorDetail } from "./error-view";
@@ -22,6 +22,7 @@ import { z } from "zod";
 import { METHODS } from "../constants";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { useMemo } from "react";
+import { RequestForm } from "./request-form";
 
 // Helper function to get a color for the status code accessory
 function getStatusAccessory(status: number): List.Item.Accessory {
@@ -54,10 +55,10 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
   const navigationTitle = filterByRequestId ? "Run History for Request" : "Request History";
 
   const requestCollectionMap = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, Collection>();
     for (const collection of collections) {
       for (const request of collection.requests) {
-        map.set(request.id, collection.title);
+        map.set(request.id, collection);
       }
     }
     return map;
@@ -93,8 +94,11 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
         <List.EmptyView title="No History Found" description="Run some requests to see their history here." />
       ) : (
         history.map((entry: HistoryEntry) => {
-          const collectionName = !!entry.sourceRequestId ? requestCollectionMap.get(entry.sourceRequestId) : null;
-          const subtitle = `${collectionName ?? "Unsaved Request"} | ${new Date(entry.createdAt).toLocaleString()}`;
+          const collectionName = !!entry.sourceRequestId
+            ? requestCollectionMap.get(entry.sourceRequestId)?.title
+            : null;
+          const date = new Date(entry.createdAt);
+          const subtitle = `${collectionName ?? "Unsaved Request"} | ${date.toDateString()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
           return (
             <List.Item
               key={entry.id}
@@ -189,6 +193,26 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                           toast.message = String(error);
                         }
                       }
+                    }}
+                  />
+
+                  <Action
+                    title="View request"
+                    onAction={() => {
+                      // 1. Find the original collection to get its context (e.g., global headers)
+                      const sourceCollection = collections.find((c) =>
+                        c.requests.some((r) => r.id === entry.sourceRequestId),
+                      );
+
+                      if (!sourceCollection) {
+                        showToast({
+                          style: Toast.Style.Failure,
+                          title: "Failed to Re-run",
+                          message: "Original collection could not be found.",
+                        });
+                        return;
+                      }
+                      push(<RequestForm collectionId={sourceCollection.id} request={entry.requestSnapshot} />);
                     }}
                   />
                   <Action
