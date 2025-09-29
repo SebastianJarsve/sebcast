@@ -84,6 +84,7 @@ export function CollectionActions({ children }: PropsWithChildren) {
   const { value: currentCollectionId } = useAtom($currentCollectionId);
   const { value: collections } = useAtom($collections);
   const currentCollection = collections.map((c) => c.id === currentCollectionId);
+  const currentCollection = collections.find((c) => c.id === currentCollectionId);
   return (
     <ActionPanel.Section title="Collection">
       {children}
