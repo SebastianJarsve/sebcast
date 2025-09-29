@@ -48,6 +48,9 @@ export function parseCookie(rawCookie: string): ParsedCookie | null {
  * @returns An object with a formatted `Cookie` header, or undefined if no cookies match.
  */
 export function prepareCookieHeader(finalUrl: string): { Cookie: string } | undefined {
+  if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
+    return undefined;
+  }
   const allCookies = $cookies.get();
   const requestDomain = new URL(finalUrl).hostname;
   let cookieString = "";

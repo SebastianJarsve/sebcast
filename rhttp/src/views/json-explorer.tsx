@@ -1,7 +1,8 @@
 import { List, ActionPanel, Action, environment, showToast, Toast, Icon } from "@raycast/api";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import fs from "fs/promises";
 import { join } from "path";
+import { useFuzzySearchList } from "@nozbe/microfuzz/react";
 
 type Path = (string | number)[];
 
@@ -15,6 +16,16 @@ export type JSONExplorerProps = {
   previewLimit?: number;
 };
 
+type Row = {
+  id: string;
+  label: string;
+  accessor: string;
+  type: string;
+  meta: string | undefined;
+  canDrill: boolean;
+  kind: string;
+};
+
 /* ---------- Main Component ---------- */
 
 export function JSONExplorer({
@@ -22,7 +33,7 @@ export function JSONExplorer({
   json,
   title = "JSON Explorer",
   pageSize = 20,
-  previewLimit = 4000,
+  previewLimit = 1000,
 }: JSONExplorerProps) {
   const root = useMemo(() => {
     if (json !== undefined) {
@@ -34,42 +45,43 @@ export function JSONExplorer({
     }
     return data;
   }, [json, data]);
+
   const [path, setPath] = useState<Path>([]);
   const [page, setPage] = useState(0);
   const [selectedId, setSelectedId] = useState<string | undefined>();
+  const [searchText, setSearchText] = useState("");
 
   const node = useMemo(() => getNode(root, path), [root, path]);
-  const { rows, total } = useMemo(() => listChildrenPaged(node, page, pageSize), [node, page, pageSize]);
-  const onPrev = () => {
-    setPage((x) => Math.max(0, x - 1));
-    // 3. Reset the selection when the page changes
-    setTimeout(() => {
-      if (pages > 1) setSelectedId("next-page");
-      else setSelectedId("back-action");
-    }, 50);
-  };
-  const onNext = () => {
-    setPage((x) => Math.min(pages - 1, x + 1));
-    // 3. Reset the selection when the page changes
-    setTimeout(() => {
-      setSelectedId("prev-page");
-    }, 50);
-  };
+
+  const { rows: rowsForCurrentPage, total } = useMemo(() => {
+    return listChildrenPaged(node, page, pageSize);
+  }, [node, page, pageSize]);
+
+  const rows = useFuzzySearchList({
+    list: rowsForCurrentPage,
+    queryText: searchText,
+    getText: useCallback((row: Row) => [row.label], []),
+    mapResultItem: ({ item }) => item,
+  });
+
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+
+  const onPrev = () => setPage((x) => Math.max(0, x - 1));
+  const onNext = () => setPage((x) => Math.min(pages - 1, x + 1));
+  useEffect(() => setPage(0), [path, searchText]);
+
   // Optimized preview logic
-  const [preview, setPreview] = useState<string>("");
-  useEffect(() => {
+  const preview = useMemo(() => {
     const rowToPreview = rows.find((r) => r.id === selectedId) ?? rows[0];
-    if (!rowToPreview) {
-      setPreview("Select an item to see its value.");
-      return;
-    }
-    const value = rowToPreview.kind === "child" ? getNode(node, [rowToPreview.accessor]) : node;
+    if (!rowToPreview) return "Select an item to see its value.";
+
+    const value = getNode(node, [rowToPreview.accessor]);
     const stringifiedValue = safeStringify(value);
     const previewContent =
       stringifiedValue.length > previewLimit
         ? stringifiedValue.slice(0, previewLimit) + "\n\n... (truncated)"
         : stringifiedValue;
-    setPreview(`\`\`\`json\n${previewContent}\n\`\`\``);
+    return `\`\`\`json\n${previewContent}\n\`\`\``;
   }, [selectedId, rows, node, previewLimit]);
 
   useEffect(() => {
@@ -78,30 +90,24 @@ export function JSONExplorer({
   }, [path.join("/")]);
 
   const breadcrumb = "/" + (path.length ? path.map(String).join("/") : "");
-  const pages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <List
+      searchText={searchText}
+      onSearchTextChange={setSearchText}
+      filtering={false}
       navigationTitle={"Explore JSON" + (pages > 1 ? ` (Page ${page + 1} of ${pages})` : "")}
       isShowingDetail
       searchBarPlaceholder={`Browse ${title} — ${breadcrumb}`}
       onSelectionChange={(id) => setSelectedId(id ?? undefined)}
       selectedItemId={selectedId ?? undefined}
       throttle
+      actions={
+        <ActionPanel>
+          <PaginationActions page={page} pages={pages} onPrev={onPrev} onNext={onNext} />
+        </ActionPanel>
+      }
     >
-      {path.length > 0 && (
-        <List.Item
-          id="back-action"
-          title=".."
-          subtitle="Up one level"
-          actions={
-            <ActionPanel>
-              <BackActions canGoUp onBack={() => setPath((p) => p.slice(0, -1))} />
-              {pages > 1 && <PaginationActions page={page} pages={pages} onNext={onNext} onPrev={onPrev} />}
-            </ActionPanel>
-          }
-        />
-      )}
       {rows.map((r) => (
         <List.Item
           key={r.id}
@@ -113,7 +119,11 @@ export function JSONExplorer({
           actions={
             <ActionPanel>
               {r.canDrill && <Action title="Open Node" onAction={() => setPath((p) => [...p, r.accessor])} />}
-              <BackActions canGoUp={path.length > 0} onBack={() => setPath((p) => p.slice(0, -1))} />
+              <BackActions
+                canGoUp={path.length > 0}
+                onBack={() => setPath((p) => p.slice(0, -1))}
+                isEmptySearchText={searchText.length === 0}
+              />
               <Action.CopyToClipboard title="Copy Node" content={safeStringify(node)} />
               <Action.CopyToClipboard title="Copy Preview" content={preview} />
               <SaveSelectedAction value={getNode(node, [r.accessor])} />
@@ -158,9 +168,23 @@ export function JSONExplorer({
 
 /* ---------- Actions (small components) ---------- */
 
-function BackActions({ onBack, canGoUp }: { canGoUp?: boolean; onBack: () => void }) {
+function BackActions({
+  onBack,
+  canGoUp,
+  isEmptySearchText,
+}: {
+  canGoUp?: boolean;
+  onBack: () => void;
+  isEmptySearchText?: boolean;
+}) {
   if (!canGoUp) return null;
-  return <Action title="Up One Level" onAction={onBack} shortcut={{ modifiers: [], key: "backspace" }} />;
+  return (
+    <Action
+      title="Up One Level"
+      onAction={onBack}
+      shortcut={isEmptySearchText ? { modifiers: [], key: "backspace" } : undefined}
+    />
+  );
 }
 
 function PaginationActions({
@@ -217,7 +241,7 @@ function listChildrenPaged(node: unknown, page: number, pageSize: number) {
       return {
         id: String(idx),
         label: String(idx),
-        accessor: idx,
+        accessor: String(idx),
         type: t,
         meta: t === "array" ? `${v.length} items` : t === "object" ? `${Object.keys(v ?? {}).length} keys` : undefined,
         canDrill: t === "array" || t === "object",

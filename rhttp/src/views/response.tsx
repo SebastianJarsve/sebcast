@@ -1,15 +1,15 @@
-// src/views/ResponseView.tsx
-import { Action, ActionPanel, Color, Detail, Icon, open, showToast } from "@raycast/api";
+import { Action, ActionPanel, Color, Detail, environment, Icon, open, showToast, useNavigation } from "@raycast/api";
 import { randomUUID } from "crypto";
 import fs from "fs/promises";
 import path from "path";
-import { MAX_JSON_LENGTH, METHODS } from "~/constants";
+import { MAX_BODY_LENGTH, METHODS } from "~/constants";
 
 import { addHistoryEntry } from "~/store/history";
 import { NewRequest, ResponseData } from "~/types";
 
 import { JSONExplorer } from "./json-explorer";
 import os from "os";
+import { JSONStreamViewer } from "./streamed-array";
 
 export interface ResponseViewProps {
   requestSnapshot: NewRequest;
@@ -18,6 +18,7 @@ export interface ResponseViewProps {
 }
 
 export function ResponseView({ requestSnapshot, sourceRequestId, response }: ResponseViewProps) {
+  const { push } = useNavigation();
   function getStatusColor(status: number) {
     if (status >= 500) return Color.Red;
     if (status >= 400) return Color.Red;
@@ -52,9 +53,9 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
 
   // --- Render for HTML ---
   if (isHtml && typeof response.body === "string") {
-    const isBodyLarge = response.body.length > MAX_JSON_LENGTH;
+    const isBodyLarge = response.body.length > MAX_BODY_LENGTH;
     const bodyPreview = isBodyLarge
-      ? response.body.slice(0, MAX_JSON_LENGTH) + "\n\n... (HTML body truncated)"
+      ? response.body.slice(0, MAX_BODY_LENGTH) + "\n\n... (HTML body truncated)"
       : response.body;
     const markdown = `## HTML Preview\n\`\`\`html\n${bodyPreview}\n\`\`\``;
 
@@ -91,9 +92,11 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
 
   // --- Render for JSON (and other types) ---
   const bodyString = JSON.stringify(response.body, null, 2);
-  const isBodyLarge = bodyString.length > MAX_JSON_LENGTH;
-  const bodyPreview = isBodyLarge ? bodyString.slice(0, MAX_JSON_LENGTH) + "\n\n... (Body truncated)" : bodyString;
+  const isBodyLarge = bodyString.length > MAX_BODY_LENGTH;
+  const bodyPreview = isBodyLarge ? bodyString.slice(0, MAX_BODY_LENGTH) + "\n\n... (Body truncated)" : bodyString;
   const markdown = `## JSON Body\n\`\`\`json\n${bodyPreview}\n\`\`\``;
+  const MAX_BODY_SIZE = 1000 * 1024; // 500 KB limit for the explorer
+  const isBodyTooLarge = bodyString.length > MAX_BODY_SIZE;
 
   return (
     <Detail
@@ -102,11 +105,45 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
       metadata={metadata}
       actions={
         <ActionPanel>
-          <Action.Push
-            title="Explore Full Body"
-            icon={Icon.CodeBlock}
-            target={<JSONExplorer data={response.body} title="Response Body" />}
+          {!isBodyTooLarge && (
+            <Action
+              title="Explore Full Body"
+              icon={Icon.CodeBlock}
+              // target={<JSONExplorer data={response.body} title="Response Body" />}
+
+              onAction={async () => {
+                const body = response.body;
+                const newTitle = `Response: ${requestSnapshot.title ?? requestSnapshot.url}`;
+
+                if (Array.isArray(body) && body.length > 100) {
+                  // If it's a large array, save to temp file and use the streamer
+                  const tempPath = path.join(environment.supportPath, `stream-response.json`);
+                  await fs.writeFile(tempPath, JSON.stringify(body));
+                  push(<JSONStreamViewer jsonFilePath={tempPath} title={newTitle} />);
+                } else if (typeof body === "object" && body !== null) {
+                  // If it's an object or small array, use the in-memory explorer
+                  push(<JSONExplorer data={body} title={newTitle} />);
+                }
+              }}
+            />
+          )}
+          <Action
+            title="Open body Editor"
+            icon={Icon.Code}
+            onAction={async () => {
+              const tempPath = path.join(environment.supportPath, `response-${randomUUID()}.json`);
+              await fs.writeFile(tempPath, bodyString);
+              const editor = process.env.EDITOR;
+              console.log(editor);
+              if (editor) {
+                // If $EDITOR is set, use a deep link to open the file in a new terminal tab.
+                // This will use the user's default terminal app configured in Raycast's settings.
+                await open(`raycast://extensions/raycast/terminal/new-terminal-tab?command=${editor} ${tempPath}`);
+              }
+              open(tempPath); // Opens the file in the default .json editor (e.g., VS Code)
+            }}
           />
+
           <Action.CopyToClipboard title="Copy Full Body" content={bodyString} />
           <Action
             title="Save to History"

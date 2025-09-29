@@ -1,6 +1,6 @@
 import { Action, ActionPanel, Clipboard, Icon, showToast, Toast, useNavigation } from "@raycast/api";
-import { $currentCollection, createCollection } from "../store";
-import { $currentEnvironment, $currentEnvironmentId, $environments } from "../store/environments";
+import { $collections, $currentCollectionId, createCollection, updateCollection } from "../store";
+import { $currentEnvironmentId, $environments } from "../store/environments";
 import { ManageVariablesList } from "../views/manage-variables-list";
 import { HistoryView } from "../views/history-list-view";
 import { $isHistoryEnabled } from "../store/settings";
@@ -9,10 +9,20 @@ import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { parseCurlToRequest } from "~/utils/curl-to-request";
 import { RequestForm } from "~/views/request-form";
 import { resolveVariables } from "~/utils";
+import { PropsWithChildren } from "react";
+
+async function handleSelectEnvironment(envId: string) {
+  const currentCollectionId = $currentCollectionId.get();
+  if (currentCollectionId) {
+    await updateCollection(currentCollectionId, { lastActiveEnvironmentId: envId });
+  }
+  $currentEnvironmentId.set(envId);
+}
 
 export function SelectEnvironmentMenu() {
-  const { value: currentEnvironment } = useAtom($currentEnvironment);
+  const { value: currentEnvironmentId } = useAtom($currentEnvironmentId);
   const { value: allEnvironments } = useAtom($environments);
+  const currentEnvironment = allEnvironments.find((e) => e.id === currentEnvironmentId);
   return (
     <ActionPanel.Submenu
       title="Select environment"
@@ -23,7 +33,9 @@ export function SelectEnvironmentMenu() {
         <Action
           key={env.id}
           title={(currentEnvironment?.id === env.id ? `✅ ` : "") + env.name}
-          onAction={() => $currentEnvironmentId?.set(env?.id)}
+          onAction={() => {
+            handleSelectEnvironment(env.id);
+          }}
         />
       ))}
     </ActionPanel.Submenu>
@@ -68,10 +80,13 @@ export function HistoryActions() {
   );
 }
 
-export function CollectionActions() {
-  const { value: currentCollection } = useAtom($currentCollection);
+export function CollectionActions({ children }: PropsWithChildren) {
+  const { value: currentCollectionId } = useAtom($currentCollectionId);
+  const { value: collections } = useAtom($collections);
+  const currentCollection = collections.map((c) => c.id === currentCollectionId);
   return (
     <ActionPanel.Section title="Collection">
+      {children}
       {currentCollection && (
         <Action
           title="Export Collection"
@@ -145,7 +160,9 @@ export function CopyVariableAction() {
 }
 
 export function NewRequestFromCurlAction() {
-  const { value: currentCollection } = useAtom($currentCollection);
+  const { value: currentCollectionId } = useAtom($currentCollectionId);
+  const { value: collections } = useAtom($collections);
+  const currentCollection = collections.find((c) => c.id === currentCollectionId);
   const { push } = useNavigation();
   return (
     <Action

@@ -1,7 +1,6 @@
 import { atom } from "nanostores";
 import { z } from "zod";
 import { Collection, collectionSchema, NewCollection, NewRequest, Request } from "../types";
-import { computed } from "nanostores";
 import { randomUUID } from "crypto";
 import { createFileAdapter, createLocalStorageAdapter } from "@sebastianjarsve/persistent-atom/adapters";
 import path from "path";
@@ -13,7 +12,10 @@ export const $collections = persistentAtom<Collection[]>([], {
   storage: createFileAdapter(path.join(environment.supportPath, "collections.json")),
   key: "collections",
   serialize: JSON.stringify,
-  deserialize: (raw) => z.array(collectionSchema).parse(JSON.parse(raw)),
+  deserialize: (raw) => {
+    console.log(z.array(collectionSchema).parse(JSON.parse(raw)));
+    return z.array(collectionSchema).parse(JSON.parse(raw));
+  },
 });
 
 // --- A helper to create the default collection object ---
@@ -24,6 +26,7 @@ function createDefaultCollectionObject(): Collection {
     title: DEFAULT_COLLECTION_NAME,
     requests: [],
     headers: [],
+    lastActiveEnvironmentId: null,
   };
 }
 
@@ -34,11 +37,11 @@ export async function initializeDefaultCollection() {
   await $collections.ready;
   if ($collections.get().length === 0) {
     const defaultCollection = createDefaultCollectionObject();
-    $collections.set([defaultCollection]);
-    $currentCollectionId.set(defaultCollection.id);
+    $collections.setAndFlush([defaultCollection]);
+    $currentCollectionId.setAndFlush(defaultCollection.id);
   }
 }
-initializeDefaultCollection();
+// initializeDefaultCollection();
 
 export const $currentCollectionId = persistentAtom<string | null>(null, {
   storage: createLocalStorageAdapter(),
@@ -46,11 +49,6 @@ export const $currentCollectionId = persistentAtom<string | null>(null, {
   isEqual(a, b) {
     return a === b;
   },
-});
-
-export const $currentCollection = computed([$currentCollectionId, $collections], (id, allCollections) => {
-  if (!id) return null;
-  return allCollections.find((c) => c.id === id) ?? null;
 });
 
 export const $selectedRequestId = atom<string | null>(null);
@@ -172,4 +170,41 @@ export async function deleteRequest(collectionId: string, requestId: string) {
 
   // No need to validate here, as we are only removing data
   await $collections.setAndFlush(newState);
+}
+
+/**
+ * Moves a request from one collection to another.
+ */
+export async function moveRequest(requestId: string, sourceCollectionId: string, destinationCollectionId: string) {
+  const currentCollections = $collections.get();
+  let requestToMove: Request | undefined;
+
+  // First, find the request and remove it from the source collection
+  const collectionsWithoutRequest = currentCollections.map((c) => {
+    if (c.id === sourceCollectionId) {
+      requestToMove = c.requests.find((r) => r.id === requestId);
+      const updatedRequests = c.requests.filter((r) => r.id !== requestId);
+      return { ...c, requests: updatedRequests };
+    }
+    return c;
+  });
+
+  // If we couldn't find the request, something is wrong, so we stop.
+  if (!requestToMove) {
+    console.error("Could not find request to move.");
+    return;
+  }
+
+  // Now, add the request to the destination collection
+  const finalCollections = collectionsWithoutRequest.map((c) => {
+    if (c.id === destinationCollectionId) {
+      const updatedRequests = [...c.requests, requestToMove!];
+      return { ...c, requests: updatedRequests };
+    }
+    return c;
+  });
+
+  // Validate the final state before saving
+  z.array(collectionSchema).parse(finalCollections);
+  await $collections.setAndFlush(finalCollections);
 }

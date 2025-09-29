@@ -27,11 +27,6 @@ export const $currentEnvironmentId = persistentAtom<string | null>(null, {
   key: "app-active-environment-id",
 });
 
-export const $currentEnvironment = computed([$currentEnvironmentId, $environments], (id, allEnvironments) => {
-  if (!id) return null;
-  return allEnvironments.find((c) => c.id === id) ?? null;
-});
-
 /**
  * Creates the default "Global" environment object.
  */
@@ -47,7 +42,7 @@ function createGlobalEnvironmentObject(): Environment {
  * Checks if the environment store is empty on startup and creates
  * a default "Globals" environment if needed.
  */
-async function initializeDefaultEnvironment() {
+export async function initializeDefaultEnvironment() {
   await $environments.ready;
   const environments = $environments.get();
 

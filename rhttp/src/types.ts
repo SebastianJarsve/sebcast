@@ -109,6 +109,7 @@ export const collectionSchema = z.object({
   title: z.string(),
   requests: z.array(requestSchema),
   headers: headersSchema,
+  lastActiveEnvironmentId: z.uuid().nullable().optional().default(null),
 });
 export type Collection = z.infer<typeof collectionSchema>;
 

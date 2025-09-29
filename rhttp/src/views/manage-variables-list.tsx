@@ -1,11 +1,5 @@
 import { Action, ActionPanel, List, Icon, confirmAlert, showToast, Alert, Toast } from "@raycast/api";
-import {
-  $environments,
-  $currentEnvironmentId,
-  deleteVariable,
-  deleteEnvironment,
-  $currentEnvironment,
-} from "../store/environments";
+import { $environments, $currentEnvironmentId, deleteVariable, deleteEnvironment } from "../store/environments";
 import { EnvironmentForm } from "./environment-form";
 import { VariableForm } from "./variable-form";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
@@ -30,7 +24,9 @@ function EnvironmentDropdown() {
 }
 
 function CommonActions() {
-  const { value: currentEnvironment } = useAtom($currentEnvironment);
+  const { value: currentEnvironmentId } = useAtom($currentEnvironmentId);
+  const { value: environments } = useAtom($environments);
+  const currentEnvironment = environments.find((e) => e.id === currentEnvironmentId);
   return (
     <>
       {/* Actions for the selected environment */}

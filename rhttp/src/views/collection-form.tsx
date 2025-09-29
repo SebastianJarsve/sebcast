@@ -23,7 +23,7 @@ export function CollectionForm({ collectionId }: CollectionFormProps) {
     if (collectionId) {
       return collections.find((c) => c.id === collectionId);
     }
-    return { title: "", requests: [], headers: [] };
+    return { title: "", requests: [], headers: [], lastActiveEnvironmentId: null };
   });
 
   const [headers, setHeaders] = useState<Headers>(collection?.headers ?? []);

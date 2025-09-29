@@ -2,30 +2,33 @@
 import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { useState } from "react";
 import { NewRequest, Request, Headers, Method, ResponseAction } from "../types";
-import { $currentCollection, createRequest, updateRequest } from "../store";
+import { $collections, $currentCollectionId, createRequest, updateRequest } from "../store";
 import { COMMON_HEADER_KEYS, METHODS } from "../constants"; // Assuming you have a constants file for METHODS etc.
 import { z } from "zod";
 import { ErrorDetail } from "./error-view";
 import { runRequest } from "../utils";
 import { ResponseView } from "./response";
 import axios from "axios";
-import { $currentEnvironment } from "../store/environments";
 import { randomUUID } from "crypto";
 import { ResponseActionsEditor } from "../components/response-actions-editor";
 import { KeyValueEditor } from "../components/key-value-editor";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { CopyVariableAction, GlobalActions } from "~/components/actions";
+import { $currentEnvironmentId, $environments } from "~/store/environments";
 
 interface RequestFormProps {
   collectionId: string;
-  // requestId?: string;
   request: Partial<Request>;
 }
 
 export function RequestForm({ collectionId, request: initialRequest }: RequestFormProps) {
   const { push } = useNavigation();
-  const { value: currentCollection } = useAtom($currentCollection);
-  const { value: currentEnvironment } = useAtom($currentEnvironment);
+  const { value: collections } = useAtom($collections);
+  const { value: currentCollectionId } = useAtom($currentCollectionId);
+  const currentCollection = collections.find((c) => c.id === currentCollectionId);
+  const { value: environments } = useAtom($environments);
+  const { value: currentEnvironmentId } = useAtom($currentEnvironmentId);
+  const currentEnvironment = environments.find((e) => e.id === currentEnvironmentId);
 
   const request = initialRequest;
   const [currentRequestId, setCurrentRequestId] = useState(initialRequest.id);

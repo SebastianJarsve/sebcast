@@ -1,5 +1,12 @@
 import { Action, ActionPanel, Alert, confirmAlert, Icon, List, showToast, Toast, useNavigation } from "@raycast/api";
-import { $collections, $currentCollection, $currentCollectionId, deleteCollection, deleteRequest } from "./store";
+import {
+  $collections,
+  $currentCollectionId,
+  deleteCollection,
+  deleteRequest,
+  initializeDefaultCollection,
+  moveRequest,
+} from "./store";
 import { CollectionForm } from "~/views/collection-form";
 import { RequestForm } from "~/views/request-form";
 import { Collection } from "~/types";
@@ -8,11 +15,15 @@ import { ResponseView } from "~/views/response";
 import axios from "axios";
 import { ErrorDetail } from "~/views/error-view";
 import { z } from "zod";
-import { $currentEnvironment } from "~/store/environments";
-import { GlobalActions } from "~/components/actions";
+import { $currentEnvironmentId, $environments, initializeDefaultEnvironment } from "~/store/environments";
+import { CollectionActions, GlobalActions, NewRequestFromCurlAction } from "~/components/actions";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { DEFAULT_COLLECTION_NAME } from "~/constants";
 import { generateCurlCommand } from "./utils/curl-to-request";
+import { $cookies } from "./store/cookies";
+import { $history } from "./store/history";
+import { useEffect, useState } from "react";
+import { PersistentAtom } from "@sebastianjarsve/persistent-atom/.";
 
 function CommonActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
   return (
@@ -26,15 +37,19 @@ function CommonActions({ currentCollection: currentCollection }: { currentCollec
           icon={Icon.PlusCircle}
         />
       )}
-      {currentCollection && currentCollection.title !== DEFAULT_COLLECTION_NAME && (
-        <Action.Push
-          key={"edit-request"}
-          title="Edit Collection"
-          shortcut={{ modifiers: ["cmd", "shift"], key: "e" }}
-          target={<CollectionForm collectionId={currentCollection.id} />}
-          icon={Icon.Pencil}
-        />
-      )}
+      <NewRequestFromCurlAction />
+
+      <CollectionActions>
+        {currentCollection && currentCollection.title !== DEFAULT_COLLECTION_NAME && (
+          <Action.Push
+            key={"edit-request"}
+            title="Edit Collection"
+            shortcut={{ modifiers: ["cmd", "shift"], key: "e" }}
+            target={<CollectionForm collectionId={currentCollection.id} />}
+            icon={Icon.Pencil}
+          />
+        )}
+      </CollectionActions>
       <Action.Push
         key={"create-request"}
         title="Create Collection"
@@ -73,8 +88,18 @@ export function CollectionDropdown() {
   return (
     <List.Dropdown
       tooltip="Select Collection"
-      value={currentId ?? undefined} // Use the ID from the store
-      onChange={(newValue) => $currentCollectionId.set(newValue)}
+      value={currentId ?? undefined}
+      onChange={(newValue) => {
+        // 1. Find the collection that was just selected using `newValue`.
+        const newCollection = collections.find((c) => c.id === newValue);
+
+        // 2. Set the active environment based on the NEW collection's preference.
+        $currentEnvironmentId.set(newCollection?.lastActiveEnvironmentId ?? null);
+
+        // 3. Set the current collection ID to the new value.
+        $currentCollectionId.set(newValue);
+        console.log("HELLO?", newValue);
+      }}
     >
       <List.Dropdown.Section title="Collections">
         {collections.map((c) => {
@@ -85,19 +110,72 @@ export function CollectionDropdown() {
   );
 }
 
-export default function RequestList() {
-  const { value: currentCollection } = useAtom($currentCollection);
-  const { value: currentEnvironment } = useAtom($currentEnvironment);
-  const { push } = useNavigation();
+function useStoresReady(atoms: PersistentAtom<any>[]) {
+  const [isReady, setIsReady] = useState(false);
 
+  useEffect(() => {
+    async function checkReady() {
+      // Wait for all the provided atoms to finish their hydration
+      await Promise.all(atoms.map((atom) => atom.ready));
+      setIsReady(true);
+    }
+    checkReady();
+  }, []); // The empty array ensures this runs only once
+
+  return isReady;
+}
+
+async function initializeApp() {
+  // Use Promise.allSettled to wait for all promises, even if some fail.
+  const results = await Promise.allSettled([$collections.ready, $environments.ready, $cookies.ready, $history.ready]);
+
+  // Check if any of the hydration promises were rejected.
+  const failedStores = results.filter((result) => result.status === "rejected");
+  if (failedStores.length > 0) {
+    // If so, log the details and show a single toast to the user.
+    failedStores.forEach((failure) => console.error((failure as PromiseRejectedResult).reason));
+    await showToast({
+      style: Toast.Style.Failure,
+      title: "Failed to Load Some Data",
+      message: "A data file may have been corrupted and has been reset.",
+    });
+  }
+
+  // Now, proceed with initialization. This will create defaults for any
+  // stores that failed to load and are currently empty.
+  initializeDefaultCollection();
+  initializeDefaultEnvironment();
+}
+
+export default function RequestList() {
+  useEffect(() => {
+    initializeApp();
+  }, []);
+
+  const isReady = useStoresReady([
+    $collections,
+    $currentCollectionId,
+    $environments,
+    $currentEnvironmentId,
+    $history,
+    $cookies,
+  ]);
+  const { value: collections } = useAtom($collections);
+  const { value: curentCollectionId } = useAtom($currentCollectionId);
+  const currentCollection = collections.find((c) => c.id === curentCollectionId);
+  const { value: currentEnvironmentId } = useAtom($currentEnvironmentId);
+  const { value: environments } = useAtom($environments);
+  const currentEnvironment = environments.find((e) => e.id === currentEnvironmentId);
+  const { push } = useNavigation();
   return (
     <List
+      isLoading={!isReady}
       navigationTitle={`Environment = ${currentEnvironment?.name}`}
       searchBarPlaceholder="Search requests..."
       searchBarAccessory={<CollectionDropdown />}
       actions={
         <ActionPanel>
-          <CommonActions currentCollection={currentCollection} />
+          {currentCollection && <CommonActions currentCollection={currentCollection} />}
           <GlobalActions />
         </ActionPanel>
       }
@@ -187,6 +265,19 @@ export default function RequestList() {
                     shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
                   />
                   <CommonActions currentCollection={currentCollection} />
+                  <ActionPanel.Submenu
+                    title="Move request to another collection"
+                    icon={Icon.Switch}
+                    shortcut={{ modifiers: ["cmd"], key: "m" }}
+                  >
+                    {collections.map((c) => (
+                      <Action
+                        key={`col-${c.id}`}
+                        title={`Move to "${c.title}"`}
+                        onAction={() => moveRequest(request.id, currentCollection.id, c.id)}
+                      />
+                    ))}
+                  </ActionPanel.Submenu>
                   <Action
                     title="Delete Request"
                     icon={Icon.Trash}
