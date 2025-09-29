@@ -10,6 +10,7 @@ import { NewRequest, ResponseData } from "~/types";
 import { JSONExplorer } from "./json-explorer";
 import os from "os";
 import { JSONStreamViewer } from "./streamed-array";
+import { OpenInEditorAction } from "~/components/actions";
 
 export interface ResponseViewProps {
   requestSnapshot: NewRequest;
@@ -75,6 +76,8 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
                 await open(filePath);
               }}
             />
+
+            <OpenInEditorAction responseBody={response.body} />
             <Action.CopyToClipboard title="Copy HTML Body" content={response.body} />
             <Action
               title="Save to History"
@@ -127,23 +130,7 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
               }}
             />
           )}
-          <Action
-            title="Open body Editor"
-            icon={Icon.Code}
-            onAction={async () => {
-              const tempPath = path.join(environment.supportPath, `response-${randomUUID()}.json`);
-              await fs.writeFile(tempPath, bodyString);
-              const editor = process.env.EDITOR;
-              console.log(editor);
-              if (editor) {
-                // If $EDITOR is set, use a deep link to open the file in a new terminal tab.
-                // This will use the user's default terminal app configured in Raycast's settings.
-                await open(`raycast://extensions/raycast/terminal/new-terminal-tab?command=${editor} ${tempPath}`);
-              }
-              open(tempPath); // Opens the file in the default .json editor (e.g., VS Code)
-            }}
-          />
-
+          <OpenInEditorAction responseBody={bodyString} />
           <Action.CopyToClipboard title="Copy Full Body" content={bodyString} />
           <Action
             title="Save to History"

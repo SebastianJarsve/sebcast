@@ -1,4 +1,15 @@
-import { Action, ActionPanel, Clipboard, Icon, showToast, Toast, useNavigation } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Clipboard,
+  environment,
+  getPreferenceValues,
+  Icon,
+  open,
+  showToast,
+  Toast,
+  useNavigation,
+} from "@raycast/api";
 import { $collections, $currentCollectionId, createCollection, updateCollection } from "../store";
 import { $currentEnvironmentId, $environments } from "../store/environments";
 import { ManageVariablesList } from "../views/manage-variables-list";
@@ -10,6 +21,10 @@ import { parseCurlToRequest } from "~/utils/curl-to-request";
 import { RequestForm } from "~/views/request-form";
 import { resolveVariables } from "~/utils";
 import { PropsWithChildren } from "react";
+import path from "path";
+import fs from "fs/promises";
+import os from "os";
+import { randomUUID } from "crypto";
 
 async function handleSelectEnvironment(envId: string) {
   const currentCollectionId = $currentCollectionId.get();
@@ -83,7 +98,6 @@ export function HistoryActions() {
 export function CollectionActions({ children }: PropsWithChildren) {
   const { value: currentCollectionId } = useAtom($currentCollectionId);
   const { value: collections } = useAtom($collections);
-  const currentCollection = collections.map((c) => c.id === currentCollectionId);
   const currentCollection = collections.find((c) => c.id === currentCollectionId);
   return (
     <ActionPanel.Section title="Collection">
@@ -95,11 +109,13 @@ export function CollectionActions({ children }: PropsWithChildren) {
           onAction={async () => {
             try {
               // We use our Zod schema to validate and strip the IDs, preparing it for export.
+              console.log(currentCollection);
               const exportableCollection = newCollectionSchema.parse(currentCollection);
               const jsonString = JSON.stringify(exportableCollection, null, 2);
               await Clipboard.copy(jsonString);
               await showToast({ title: "Collection Copied to Clipboard" });
             } catch (error) {
+              console.error(error);
               await showToast({ style: Toast.Style.Failure, title: "Failed to Export" });
             }
           }}
@@ -192,6 +208,26 @@ export function NewRequestFromCurlAction() {
             message: String(error),
           });
         }
+      }}
+    />
+  );
+}
+
+export function OpenInEditorAction({ responseBody }: { responseBody: string }) {
+  return (
+    <Action
+      title="Open Response in Editor"
+      icon={Icon.Code}
+      onAction={async () => {
+        const tempPath = path.join(os.tmpdir(), `response-${randomUUID()}.json`);
+        await fs.writeFile(tempPath, responseBody);
+
+        // Get the editor name from your extension's preferences
+        const { preferredEditor } = getPreferenceValues<{ preferredEditor: string }>();
+
+        // The `open` command can take an application name as a second argument.
+        // If the preference is empty, it will be `undefined` and `open` will use the system default.
+        await open(tempPath, preferredEditor || undefined);
       }}
     />
   );

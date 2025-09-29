@@ -5,9 +5,7 @@
   "description": "HTTP CLient for Raycast",
   "icon": "extension_icon.png",
   "author": "SebastianJarsve",
-  "categories": [
-    "Developer Tools"
-  ],
+  "categories": ["Developer Tools"],
   "license": "MIT",
   "commands": [
     {
@@ -17,13 +15,22 @@
       "mode": "view"
     }
   ],
+  "preferences": [
+    {
+      "name": "preferredEditor",
+      "title": "Preferred Editor",
+      "description": "The name of the application to open JSON responses in (e.g., 'Visual Studio Code', 'Zed'). Leave blank to use the system default.",
+      "type": "textfield",
+      "required": false,
+      "default": ""
+    }
+  ],
   "dependencies": {
     "@nanostores/react": "^1.0.0",
     "@nozbe/microfuzz": "^1.0.0",
     "@raycast/api": "^1.103.2",
     "@raycast/utils": "^2.2.1",
     "@sebastianjarsve/persistent-atom": "github:sebastianjarsve/nanostores-persistent",
-    "@types/uuid": "^11.0.0",
     "axios": "^1.12.2",
     "form-data": "^4.0.4",
     "fuse.js": "^7.1.0",
