@@ -15,7 +15,7 @@ import { $currentEnvironmentId, $environments } from "../store/environments";
 import { ManageVariablesList } from "../views/manage-variables-list";
 import { HistoryView } from "../views/history-list-view";
 import { $isHistoryEnabled } from "../store/settings";
-import { newCollectionSchema } from "../types";
+import { collectionSchema, environmentsSchema, historySchema, newCollectionSchema } from "../types";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { parseCurlToRequest } from "~/utils/curl-to-request";
 import { RequestForm } from "~/views/request-form";
@@ -25,6 +25,9 @@ import path from "path";
 import fs from "fs/promises";
 import os from "os";
 import { randomUUID } from "crypto";
+import z from "zod";
+import { backupAllData, exportAtomToFile } from "~/utils/backup";
+import { $history } from "~/store/history";
 
 async function handleSelectEnvironment(envId: string) {
   const currentCollectionId = $currentCollectionId.get();
@@ -238,6 +241,24 @@ export function GlobalActions() {
     <ActionPanel.Section title="Global Actions">
       <EnvironmentActions />
       <HistoryActions />
+      <Action
+        title="Backup All Data"
+        icon={Icon.HardDrive}
+        shortcut={{ modifiers: ["cmd", "shift"], key: "b" }}
+        onAction={async () => {
+          const toast = await showToast({ style: Toast.Style.Animated, title: "Creating backup..." });
+          try {
+            await backupAllData();
+            toast.style = Toast.Style.Success;
+            toast.title = "Backup Successful";
+            toast.message = "Files saved in a new timestamped folder.";
+          } catch (error) {
+            toast.style = Toast.Style.Failure;
+            toast.title = "Backup Failed";
+            toast.message = String(error);
+          }
+        }}
+      />
     </ActionPanel.Section>
   );
 }

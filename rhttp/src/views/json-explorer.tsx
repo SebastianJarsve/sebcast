@@ -1,4 +1,4 @@
-import { List, ActionPanel, Action, environment, showToast, Toast, Icon } from "@raycast/api";
+import { List, ActionPanel, Action, environment, showToast, Toast, Icon, Keyboard } from "@raycast/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import fs from "fs/promises";
 import { join } from "path";
@@ -124,7 +124,16 @@ export function JSONExplorer({
                 onBack={() => setPath((p) => p.slice(0, -1))}
                 isEmptySearchText={searchText.length === 0}
               />
-              <Action.CopyToClipboard title="Copy Node" content={safeStringify(node)} />
+              <Action.CopyToClipboard
+                title="Copy Node"
+                content={safeStringify(node)}
+                shortcut={Keyboard.Shortcut.Common.Copy}
+              />
+              <Action.CopyToClipboard
+                title="Copy Key"
+                content={r.accessor}
+                shortcut={Keyboard.Shortcut.Common.CopyName}
+              />
               <Action.CopyToClipboard title="Copy Preview" content={preview} />
               <SaveSelectedAction value={getNode(node, [r.accessor])} />
               <PaginationActions page={page} pages={pages} onPrev={onPrev} onNext={onNext} />

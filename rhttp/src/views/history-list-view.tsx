@@ -121,6 +121,28 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                       />
                     }
                   />
+
+                  <Action
+                    title="View Request"
+                    icon={Icon.Eye}
+                    onAction={() => {
+                      // 1. Find the original collection to get its context (e.g., global headers)
+                      const sourceCollection = collections.find((c) =>
+                        c.requests.some((r) => r.id === entry.sourceRequestId),
+                      );
+
+                      if (!sourceCollection) {
+                        showToast({
+                          style: Toast.Style.Failure,
+                          title: "Failed to Re-run",
+                          message: "Original collection could not be found.",
+                        });
+                        return;
+                      }
+                      push(<RequestForm collectionId={sourceCollection.id} request={entry.requestSnapshot} />);
+                    }}
+                  />
+
                   <Action
                     title="Re-run Request"
                     icon={Icon.Bolt}
@@ -196,25 +218,6 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                     }}
                   />
 
-                  <Action
-                    title="View request"
-                    onAction={() => {
-                      // 1. Find the original collection to get its context (e.g., global headers)
-                      const sourceCollection = collections.find((c) =>
-                        c.requests.some((r) => r.id === entry.sourceRequestId),
-                      );
-
-                      if (!sourceCollection) {
-                        showToast({
-                          style: Toast.Style.Failure,
-                          title: "Failed to Re-run",
-                          message: "Original collection could not be found.",
-                        });
-                        return;
-                      }
-                      push(<RequestForm collectionId={sourceCollection.id} request={entry.requestSnapshot} />);
-                    }}
-                  />
                   <Action
                     title="Delete Entry"
                     icon={Icon.Trash}
