@@ -1,8 +1,10 @@
 // src/store/history.ts
 import { randomUUID } from "crypto";
 import { persistentAtom } from "@sebastianjarsve/persistent-atom";
-import { HistoryEntry, historySchema, ResponseData, NewRequest } from "../types";
+import { HistoryEntry, historySchema, ResponseData, NewRequest, Variable, Variables, variableSchema } from "../types";
 import { createRaycastFileAdapter } from "../lib/adapters";
+import { $currentEnvironmentId } from "./environments";
+
 /**
  * A persistent atom to store an array of history entries.
  */
@@ -25,6 +27,7 @@ export async function addHistoryEntry(request: NewRequest, response: ResponseDat
     requestSnapshot: request,
     sourceRequestId,
     response,
+    activeEnvironmentId: $currentEnvironmentId.get() ?? undefined,
   };
 
   // Add the new entry to the top of the list and keep up to 100 entries.

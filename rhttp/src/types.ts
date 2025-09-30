@@ -126,12 +126,16 @@ export const variableSchema = z.object({
 });
 export type Variable = z.infer<typeof variableSchema>;
 
+export const variablesSchema = z.record(z.string(), variableSchema);
+
+export type Variables = z.infer<typeof variablesSchema>;
+
 // --- UPDATE THE ENVIRONMENT SCHEMA ---
 export const environmentSchema = z.object({
   id: z.uuid(),
   name: z.string(),
   // Variables are now a record of the new Variable object.
-  variables: z.record(z.string(), variableSchema),
+  variables: variablesSchema,
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
@@ -154,8 +158,9 @@ export const historyEntrySchema = z.object({
   id: z.uuid(),
   createdAt: z.coerce.date(),
   requestSnapshot: newRequestSchema, // The original request that was run
-  sourceRequestId: z.string().optional(),
+  sourceRequestId: z.uuid().optional(),
   response: responseDataSchema, // The response that was received
+  activeEnvironmentId: z.uuid().optional(),
 });
 export type HistoryEntry = z.infer<typeof historyEntrySchema>;
 

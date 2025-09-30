@@ -23,6 +23,7 @@ import { METHODS } from "../constants";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { useMemo } from "react";
 import { RequestForm } from "./request-form";
+import { $environments } from "~/store/environments";
 
 // Helper function to get a color for the status code accessory
 function getStatusAccessory(status: number): List.Item.Accessory {
@@ -48,6 +49,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
   const { push } = useNavigation();
   const { value: allHistory } = useAtom($history);
   const { value: collections } = useAtom($collections);
+  const { value: environments } = useAtom($environments);
   const history = filterByRequestId
     ? allHistory.filter((entry) => entry.sourceRequestId === filterByRequestId)
     : allHistory;
@@ -97,8 +99,15 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
           const collectionName = !!entry.sourceRequestId
             ? requestCollectionMap.get(entry.sourceRequestId)?.title
             : null;
+
           const date = new Date(entry.createdAt);
-          const subtitle = `${collectionName ?? "Unsaved Request"} | ${date.toDateString()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+          // Find the environment object first
+          const env = environments.find((e) => e.id === entry.activeEnvironmentId);
+          // Conditionally create the environment part of the string
+          const envNamePart = env ? `(${env.name}) ` : ""; // e.g., "(Staging) " or ""
+          const collectionNamePart = collectionName ?? "Unsaved Request";
+          const datePart = `${date.toDateString()} ${date.toLocaleTimeString()}`;
+          const subtitle = `${collectionNamePart} ${envNamePart}| ${datePart}`;
           return (
             <List.Item
               key={entry.id}
