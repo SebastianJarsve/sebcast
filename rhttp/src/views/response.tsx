@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Detail, environment, Icon, open, showToast, useNavigation } from "@raycast/api";
+import { Action, ActionPanel, Color, Detail, Icon, open, showToast, useNavigation } from "@raycast/api";
 import { randomUUID } from "crypto";
 import fs from "fs/promises";
 import path from "path";
@@ -9,7 +9,6 @@ import { NewRequest, ResponseData } from "~/types";
 
 import { JSONExplorer } from "./json-explorer";
 import os from "os";
-import { JSONStreamViewer } from "./streamed-array";
 import { OpenInEditorAction } from "~/components/actions";
 
 export interface ResponseViewProps {
@@ -98,8 +97,8 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
   const isBodyLarge = bodyString.length > MAX_BODY_LENGTH;
   const bodyPreview = isBodyLarge ? bodyString.slice(0, MAX_BODY_LENGTH) + "\n\n... (Body truncated)" : bodyString;
   const markdown = `## JSON Body\n\`\`\`json\n${bodyPreview}\n\`\`\``;
-  const MAX_BODY_SIZE = 1000 * 1024; // 500 KB limit for the explorer
-  const isBodyTooLarge = bodyString.length > MAX_BODY_SIZE;
+  const MAX_JSON_EXPLORER_BODY_SIZE = 1000 * 1024;
+  const isBodyTooLarge = bodyString.length > MAX_JSON_EXPLORER_BODY_SIZE;
 
   return (
     <Detail
@@ -109,25 +108,10 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
       actions={
         <ActionPanel>
           {!isBodyTooLarge && (
-            <Action
+            <Action.Push
               title="Explore Full Body"
               icon={Icon.CodeBlock}
-              // target={<JSONExplorer data={response.body} title="Response Body" />}
-
-              onAction={async () => {
-                const body = response.body;
-                const newTitle = `Response: ${requestSnapshot.title ?? requestSnapshot.url}`;
-
-                if (Array.isArray(body) && body.length > 100) {
-                  // If it's a large array, save to temp file and use the streamer
-                  const tempPath = path.join(environment.supportPath, `stream-response.json`);
-                  await fs.writeFile(tempPath, JSON.stringify(body));
-                  push(<JSONStreamViewer jsonFilePath={tempPath} title={newTitle} />);
-                } else if (typeof body === "object" && body !== null) {
-                  // If it's an object or small array, use the in-memory explorer
-                  push(<JSONExplorer data={body} title={newTitle} />);
-                }
-              }}
+              target={<JSONExplorer data={response.body} title="Response Body" />}
             />
           )}
           <OpenInEditorAction responseBody={bodyString} />

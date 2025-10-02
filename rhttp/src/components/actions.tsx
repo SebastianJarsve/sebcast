@@ -5,6 +5,8 @@ import {
   environment,
   getPreferenceValues,
   Icon,
+  Keyboard,
+  KeyboardShortcut,
   open,
   showToast,
   Toast,
@@ -112,7 +114,6 @@ export function CollectionActions({ children }: PropsWithChildren) {
           onAction={async () => {
             try {
               // We use our Zod schema to validate and strip the IDs, preparing it for export.
-              console.log(currentCollection);
               const exportableCollection = newCollectionSchema.parse(currentCollection);
               const jsonString = JSON.stringify(exportableCollection, null, 2);
               await Clipboard.copy(jsonString);
@@ -216,11 +217,18 @@ export function NewRequestFromCurlAction() {
   );
 }
 
-export function OpenInEditorAction({ responseBody }: { responseBody: string }) {
+export function OpenInEditorAction({
+  responseBody,
+  shortcut = Keyboard.Shortcut.Common.Open,
+}: {
+  responseBody: string;
+  shortcut?: Keyboard.Shortcut;
+}) {
   return (
     <Action
       title="Open Response in Editor"
       icon={Icon.Code}
+      shortcut={shortcut}
       onAction={async () => {
         const tempPath = path.join(os.tmpdir(), `response-${randomUUID()}.json`);
         await fs.writeFile(tempPath, responseBody);
