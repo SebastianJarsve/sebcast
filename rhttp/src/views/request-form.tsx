@@ -1,91 +1,21 @@
 import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { useState } from "react";
-import { NewRequest, Request, Headers, Method, ResponseAction, Collection } from "../types";
-import { $collections, $currentCollectionId, createRequest, updateRequest } from "../store";
+import { NewRequest, Request, Method } from "~/types";
+import { $collections, $currentCollectionId, createRequest, updateRequest } from "~/store";
 import { COMMON_HEADER_KEYS, METHODS } from "~/constants";
-import { z, ZodIssueCode } from "zod";
+import { z } from "zod";
 import { ErrorDetail } from "./error-view";
-import { runRequest } from "~/utils";
-import { ResponseView } from "./response";
-import axios from "axios";
 import { randomUUID } from "crypto";
 import { ResponseActionsEditor } from "~/components/response-actions-editor";
 import { KeyValueEditor } from "~/components/key-value-editor";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { CopyVariableAction, GlobalActions } from "~/components/actions";
 import { $currentEnvironmentId, $environments } from "~/store/environments";
+import { useRunRequest } from "~/hooks/use-run-request";
 
 interface RequestFormProps {
   collectionId: string;
   request: Partial<Request>;
-}
-
-function useRunRequest() {
-  const { push } = useNavigation();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const execute = async (request: Request, collection: Collection) => {
-    setIsLoading(true);
-    const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
-    try {
-      // 2. Call our utility function
-      if (!collection) return;
-      const response = await runRequest(request, collection);
-
-      // 3. On success, hide the toast and push the response view
-      toast.hide();
-      if (!response) throw response;
-      push(
-        <ResponseView
-          sourceRequestId={request.id}
-          requestSnapshot={request}
-          response={{
-            requestMethod: request.method,
-            status: response.status,
-            statusText: response.statusText,
-            headers: response.headers as Record<string, string>,
-            body: response.data,
-          }}
-        />,
-      );
-    } catch (error) {
-      // Check if it's an Axios error with a response from the server
-      if (axios.isAxiosError(error) && error.response) {
-        // This is an API error (e.g., 404, 500). Show the detailed view.
-        toast.hide();
-        push(
-          <ResponseView
-            requestSnapshot={request}
-            response={{
-              requestMethod: request.method,
-              status: error.response.status,
-              statusText: error.response.statusText,
-              headers: error.response.headers as Record<string, string>,
-              body: error.response.data,
-            }}
-          />,
-        );
-      } else if (error instanceof z.ZodError) {
-        toast.hide();
-        // This is a validation error from our schema -> Show the ErrorDetail view
-        push(<ErrorDetail error={error} />);
-      } else if (axios.isAxiosError(error) && error.code === "ENOTFOUND") {
-        // This is a DNS/network error, which often means a VPN isn't connected.
-        toast.style = Toast.Style.Failure;
-        toast.title = "Host Not Found";
-        toast.message = "Check your internet or VPN connection.";
-      } else {
-        // This is a network error (e.g., connection refused) or another issue.
-        // For these, a toast is appropriate.
-        toast.style = Toast.Style.Failure;
-        toast.title = "Request Failed";
-        toast.message = String(error);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  return { execute, isLoading };
 }
 
 export function RequestForm({ collectionId, request: initialRequest }: RequestFormProps) {
@@ -113,8 +43,6 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
     responseActions: initialRequest.responseActions ?? [],
   });
 
-  const request = initialRequest;
-
   const [activeHeaderIndex, setActiveHeaderIndex] = useState<number | null>(null);
   const [activeActionIndex, setActiveActionIndex] = useState<number | null>(null);
 
@@ -133,7 +61,6 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         await createRequest(collectionId, dirtyRequest as NewRequest);
         showToast({ title: "Request Created" });
       }
-      // pop();
     } catch (error) {
       // This block runs if Zod's .parse() throws an error.
       if (error instanceof z.ZodError) {
@@ -157,11 +84,11 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
       navigationTitle={`Environment = ${currentEnvironment?.name}`}
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Run Request" icon={Icon.Bolt} onSubmit={handleRun} />
-          <Action.SubmitForm
+          <Action title="Run Request" icon={Icon.Bolt} onAction={handleRun} />
+          <Action
             title="Save Request"
             icon={Icon.HardDrive}
-            onSubmit={handleSave}
+            onAction={handleSave}
             shortcut={{ modifiers: ["cmd"], key: "s" }}
           />
 
@@ -181,7 +108,6 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                 style={Action.Style.Destructive}
                 onAction={() => {
                   if (activeHeaderIndex === null) return;
-                  // setHeaders(headers.filter((_, i) => i !== activeIndex));
                   setDirtyRequest((old) => ({
                     ...old,
                     headers: old.headers.filter((_, i) => i !== activeHeaderIndex),
@@ -248,16 +174,29 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
           />
         ))}
       </Form.Dropdown>
-      <Form.TextField id="title" title="Title" placeholder="e.g., Get All Users" defaultValue={request?.title} />
+      <Form.TextField
+        id="title"
+        title="Title"
+        placeholder="e.g., Get All Users"
+        value={dirtyRequest.title}
+        onChange={(title) => setDirtyRequest((old) => ({ ...old, title }))}
+      />
       <Form.TextField
         id="url"
         title="URL / Path"
         placeholder="/users or https://api.example.com"
-        defaultValue={request?.url}
+        value={dirtyRequest.url}
+        onChange={(url) => setDirtyRequest((old) => ({ ...old, url }))}
       />
 
       {(["POST", "PUT", "PATCH"] as Array<Method | undefined>).includes(dirtyRequest.method) && (
-        <Form.Dropdown id="bodyType" defaultValue="JSON" title="Body type" info="">
+        <Form.Dropdown
+          id="bodyType"
+          title="Body type"
+          info=""
+          value={dirtyRequest.bodyType}
+          onChange={(bodyType) => setDirtyRequest((old) => ({ ...old, bodyType: bodyType as Request["bodyType"] }))}
+        >
           <Form.Dropdown.Item title="NONE" value="NONE" />
           <Form.Dropdown.Item title="JSON" value="JSON" />
           <Form.Dropdown.Item title="FORM_DATA" value="FORM_DATA" />
@@ -265,7 +204,13 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
       )}
       {/* Conditional fields for Body, Params, etc. */}
       {dirtyRequest.method && ["POST", "PUT", "PATCH"].includes(dirtyRequest.method) && (
-        <Form.TextArea id="body" title="Body" placeholder="Enter JSON body" defaultValue={request?.body} />
+        <Form.TextArea
+          id="body"
+          title="Body"
+          placeholder="Enter JSON body"
+          value={dirtyRequest.body}
+          onChange={(body) => setDirtyRequest((old) => ({ ...old, body }))}
+        />
       )}
 
       {/* Show Params field for GET */}
@@ -274,19 +219,27 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
           id="params"
           title="Params"
           placeholder="Enter params as a JSON object"
-          defaultValue={request?.params}
+          value={dirtyRequest.params}
+          onChange={(params) => setDirtyRequest((old) => ({ ...old, params }))}
         />
       )}
 
       {/* Show Query and Variables fields for GraphQL */}
       {dirtyRequest.method === "GRAPHQL" && (
         <>
-          <Form.TextArea id="query" title="Query" placeholder="Enter GraphQL query" defaultValue={request?.query} />
+          <Form.TextArea
+            id="query"
+            title="Query"
+            placeholder="Enter GraphQL query"
+            value={dirtyRequest.query}
+            onChange={(query) => setDirtyRequest((old) => ({ ...old, query }))}
+          />
           <Form.TextArea
             id="variables"
             title="Variables"
             placeholder="Enter variables as a JSON object"
-            defaultValue={request?.variables}
+            value={dirtyRequest.variables}
+            onChange={(variables) => setDirtyRequest((old) => ({ ...old, variables }))}
           />
         </>
       )}
