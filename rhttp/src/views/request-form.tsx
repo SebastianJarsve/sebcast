@@ -1,17 +1,16 @@
-// RequestForm.tsx
 import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { useState } from "react";
-import { NewRequest, Request, Headers, Method, ResponseAction } from "../types";
+import { NewRequest, Request, Headers, Method, ResponseAction, Collection } from "../types";
 import { $collections, $currentCollectionId, createRequest, updateRequest } from "../store";
-import { COMMON_HEADER_KEYS, METHODS } from "../constants"; // Assuming you have a constants file for METHODS etc.
-import { z } from "zod";
+import { COMMON_HEADER_KEYS, METHODS } from "~/constants";
+import { z, ZodIssueCode } from "zod";
 import { ErrorDetail } from "./error-view";
-import { runRequest } from "../utils";
+import { runRequest } from "~/utils";
 import { ResponseView } from "./response";
 import axios from "axios";
 import { randomUUID } from "crypto";
-import { ResponseActionsEditor } from "../components/response-actions-editor";
-import { KeyValueEditor } from "../components/key-value-editor";
+import { ResponseActionsEditor } from "~/components/response-actions-editor";
+import { KeyValueEditor } from "~/components/key-value-editor";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { CopyVariableAction, GlobalActions } from "~/components/actions";
 import { $currentEnvironmentId, $environments } from "~/store/environments";
@@ -21,74 +20,25 @@ interface RequestFormProps {
   request: Partial<Request>;
 }
 
-export function RequestForm({ collectionId, request: initialRequest }: RequestFormProps) {
+function useRunRequest() {
   const { push } = useNavigation();
-  const { value: collections } = useAtom($collections);
-  const { value: currentCollectionId } = useAtom($currentCollectionId);
-  const currentCollection = collections.find((c) => c.id === currentCollectionId);
-  const { value: environments } = useAtom($environments);
-  const { value: currentEnvironmentId } = useAtom($currentEnvironmentId);
-  const currentEnvironment = environments.find((e) => e.id === currentEnvironmentId);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const request = initialRequest;
-  const [currentRequestId, setCurrentRequestId] = useState(initialRequest.id);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const [method, setMethod] = useState(request?.method);
-  const [headers, setHeaders] = useState<Headers>(request?.headers ?? []);
-
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-
-  const [responseActions, setResponseActions] = useState<ResponseAction[]>(request?.responseActions ?? []);
-  const [activeActionIndex, setActiveActionIndex] = useState<number | null>(null);
-  async function handleSave(values: Omit<Request, "id" | "headers">) {
-    if (isSaving) return;
-    setIsSaving(true);
-
-    try {
-      const requestData = { ...values, method, headers, responseActions };
-      if (currentRequestId) {
-        await updateRequest(collectionId, currentRequestId, requestData);
-        showToast({ title: "Request Updated" });
-      } else {
-        const newReq = await createRequest(collectionId, requestData as NewRequest);
-        setCurrentRequestId(newReq.id);
-        showToast({ title: "Request Created" });
-      }
-      // pop();
-    } catch (error) {
-      // This block runs if Zod's .parse() throws an error.
-      if (error instanceof z.ZodError) {
-        // We can format a user-friendly message from the Zod error.
-        push(<ErrorDetail error={error} />);
-      } else {
-        // Handle other unexpected errors.
-        showToast({
-          style: Toast.Style.Failure,
-          title: "An unknown error occurred",
-        });
-      }
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function handleRun(request: Omit<Request, "id">) {
-    // 1. Show a loading toast
+  const execute = async (request: Request, collection: Collection) => {
+    setIsLoading(true);
     const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
-    const requestData: Request = { ...request, headers, responseActions, id: currentRequestId ?? randomUUID() };
     try {
       // 2. Call our utility function
-      if (!currentCollection) return;
-      const response = await runRequest(requestData, currentCollection);
+      if (!collection) return;
+      const response = await runRequest(request, collection);
 
       // 3. On success, hide the toast and push the response view
       toast.hide();
       if (!response) throw response;
       push(
         <ResponseView
-          sourceRequestId={currentRequestId}
-          requestSnapshot={requestData}
+          sourceRequestId={request.id}
+          requestSnapshot={request}
           response={{
             requestMethod: request.method,
             status: response.status,
@@ -105,7 +55,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         toast.hide();
         push(
           <ResponseView
-            requestSnapshot={requestData}
+            requestSnapshot={request}
             response={{
               requestMethod: request.method,
               status: error.response.status,
@@ -131,11 +81,79 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         toast.title = "Request Failed";
         toast.message = String(error);
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  return { execute, isLoading };
+}
+
+export function RequestForm({ collectionId, request: initialRequest }: RequestFormProps) {
+  const { push } = useNavigation();
+  const { execute: run, isLoading: isRunning } = useRunRequest();
+  const { value: collections } = useAtom($collections);
+  const { value: currentCollectionId } = useAtom($currentCollectionId);
+  const { value: currentEnvironmentId } = useAtom($currentEnvironmentId);
+  const { value: environments } = useAtom($environments);
+
+  const currentCollection = collections.find((c) => c.id === currentCollectionId);
+  const currentEnvironment = environments.find((e) => e.id === currentEnvironmentId);
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [dirtyRequest, setDirtyRequest] = useState<Request>({
+    id: initialRequest.id ?? randomUUID(),
+    title: initialRequest.title ?? "",
+    url: initialRequest.url ?? "",
+    method: initialRequest.method ?? "GET",
+    headers: initialRequest.headers ?? [],
+    body: initialRequest.body ?? "",
+    bodyType: initialRequest.bodyType ?? "NONE",
+    params: initialRequest.params ?? "",
+    query: initialRequest.query ?? "",
+    responseActions: initialRequest.responseActions ?? [],
+  });
+
+  const request = initialRequest;
+
+  const [activeHeaderIndex, setActiveHeaderIndex] = useState<number | null>(null);
+  const [activeActionIndex, setActiveActionIndex] = useState<number | null>(null);
+
+  async function handleRun() {
+    if (!currentCollection) return;
+    run(dirtyRequest, currentCollection);
+  }
+
+  async function handleSave() {
+    setIsSaving(true);
+    try {
+      if (initialRequest.id) {
+        await updateRequest(collectionId, dirtyRequest.id, dirtyRequest);
+        showToast({ title: "Request Updated" });
+      } else {
+        await createRequest(collectionId, dirtyRequest as NewRequest);
+        showToast({ title: "Request Created" });
+      }
+      // pop();
+    } catch (error) {
+      // This block runs if Zod's .parse() throws an error.
+      if (error instanceof z.ZodError) {
+        // We can format a user-friendly message from the Zod error.
+        push(<ErrorDetail error={error} />);
+      } else {
+        // Handle other unexpected errors.
+        showToast({
+          style: Toast.Style.Failure,
+          title: "An unknown error occurred",
+        });
+      }
+    } finally {
+      setIsSaving(false);
     }
   }
 
   return (
     <Form
+      isLoading={isRunning || isSaving}
       navigationTitle={`Environment = ${currentEnvironment?.name}`}
       actions={
         <ActionPanel>
@@ -153,18 +171,22 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
             <Action
               title="Add Header"
               icon={Icon.Plus}
-              onAction={() => setHeaders([...headers, { key: "", value: "" }])}
+              onAction={() => setDirtyRequest((old) => ({ ...old, headers: [...old.headers, { key: "", value: "" }] }))}
               shortcut={{ modifiers: ["cmd"], key: "h" }}
             />
-            {activeIndex !== null && (
+            {activeHeaderIndex !== null && (
               <Action
                 title="Remove Header"
                 icon={Icon.Trash}
                 style={Action.Style.Destructive}
                 onAction={() => {
-                  if (activeIndex === null) return;
-                  setHeaders(headers.filter((_, i) => i !== activeIndex));
-                  setActiveIndex(null);
+                  if (activeHeaderIndex === null) return;
+                  // setHeaders(headers.filter((_, i) => i !== activeIndex));
+                  setDirtyRequest((old) => ({
+                    ...old,
+                    headers: old.headers.filter((_, i) => i !== activeHeaderIndex),
+                  }));
+                  setActiveHeaderIndex(null);
                   showToast({ style: Toast.Style.Success, title: "Header Removed" });
                 }}
                 shortcut={{ modifiers: ["ctrl"], key: "h" }}
@@ -174,10 +196,13 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
               title="Add Response Action"
               icon={Icon.Plus}
               onAction={() =>
-                setResponseActions([
-                  ...responseActions,
-                  { id: randomUUID(), source: "BODY_JSON", sourcePath: "", variableKey: "" },
-                ])
+                setDirtyRequest((old) => ({
+                  ...old,
+                  responseActions: [
+                    ...(old.responseActions || []),
+                    { id: randomUUID(), source: "BODY_JSON", sourcePath: "", variableKey: "" },
+                  ],
+                }))
               }
               shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
             />
@@ -187,7 +212,10 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                 icon={Icon.Trash}
                 style={Action.Style.Destructive}
                 onAction={() => {
-                  setResponseActions(responseActions.filter((_, i) => i !== activeActionIndex));
+                  setDirtyRequest((old) => ({
+                    ...old,
+                    responseActions: old.responseActions?.filter((_, i) => i !== activeActionIndex),
+                  }));
                   showToast({ style: Toast.Style.Success, title: "Action Removed" });
                 }}
                 shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
@@ -205,8 +233,8 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
       <Form.Dropdown
         id="method"
         title="HTTP Method"
-        value={method}
-        onChange={(newValue) => setMethod(newValue as Method)}
+        value={dirtyRequest.method}
+        onChange={(newValue) => setDirtyRequest((old) => ({ ...old, method: newValue as Method }))}
       >
         {Object.keys(METHODS).map((m) => (
           <Form.Dropdown.Item
@@ -228,7 +256,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         defaultValue={request?.url}
       />
 
-      {(["POST", "PUT", "PATCH"] as Array<Method | undefined>).includes(method) && (
+      {(["POST", "PUT", "PATCH"] as Array<Method | undefined>).includes(dirtyRequest.method) && (
         <Form.Dropdown id="bodyType" defaultValue="JSON" title="Body type" info="">
           <Form.Dropdown.Item title="NONE" value="NONE" />
           <Form.Dropdown.Item title="JSON" value="JSON" />
@@ -236,12 +264,12 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         </Form.Dropdown>
       )}
       {/* Conditional fields for Body, Params, etc. */}
-      {method && ["POST", "PUT", "PATCH"].includes(method) && (
+      {dirtyRequest.method && ["POST", "PUT", "PATCH"].includes(dirtyRequest.method) && (
         <Form.TextArea id="body" title="Body" placeholder="Enter JSON body" defaultValue={request?.body} />
       )}
 
       {/* Show Params field for GET */}
-      {method === "GET" && (
+      {dirtyRequest.method === "GET" && (
         <Form.TextArea
           id="params"
           title="Params"
@@ -251,7 +279,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
       )}
 
       {/* Show Query and Variables fields for GraphQL */}
-      {method === "GRAPHQL" && (
+      {dirtyRequest.method === "GRAPHQL" && (
         <>
           <Form.TextArea id="query" title="Query" placeholder="Enter GraphQL query" defaultValue={request?.query} />
           <Form.TextArea
@@ -263,14 +291,14 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         </>
       )}
 
-      {headers.length > 0 && (
+      {dirtyRequest.headers.length > 0 && (
         <>
           <Form.Separator />
           <KeyValueEditor
-            onActiveIndexChange={setActiveIndex}
+            onActiveIndexChange={setActiveHeaderIndex}
             title="Headers"
-            pairs={headers}
-            onPairsChange={setHeaders}
+            pairs={dirtyRequest.headers}
+            onPairsChange={(newPairs) => setDirtyRequest((old) => ({ ...old, headers: newPairs }))}
             commonKeys={COMMON_HEADER_KEYS}
           />
         </>
@@ -278,9 +306,10 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
 
       <Form.Separator />
       <Form.Description text="Response Actions" />
+
       <ResponseActionsEditor
-        actions={responseActions}
-        onActionsChange={setResponseActions}
+        actions={dirtyRequest.responseActions ?? []}
+        onActionsChange={(newActions) => setDirtyRequest((prev) => ({ ...prev, responseActions: newActions }))}
         onActiveIndexChange={setActiveActionIndex}
       />
     </Form>
