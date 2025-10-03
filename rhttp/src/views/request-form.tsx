@@ -1,5 +1,5 @@
 import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
-import { useState } from "react";
+import { useReducer, useState } from "react";
 import { NewRequest, Request, Method } from "~/types";
 import { $collections, $currentCollectionId, createRequest, updateRequest } from "~/store";
 import { COMMON_HEADER_KEYS, METHODS } from "~/constants";
@@ -18,6 +18,46 @@ interface RequestFormProps {
   request: Partial<Request>;
 }
 
+type FormAction =
+  | { type: "SET_FIELD"; payload: { field: keyof Request; value: any } }
+  | { type: "SET_HEADERS"; payload: Request["headers"] }
+  | { type: "SET_RESPONSE_ACTIONS"; payload: Request["responseActions"] }
+  | { type: "ADD_HEADER" }
+  | { type: "REMOVE_HEADER"; payload: { index: number } }
+  | { type: "ADD_RESPONSE_ACTION" }
+  | { type: "REMOVE_RESPONSE_ACTION"; payload: { index: number } };
+
+// This function contains ALL the logic for updating the state
+function requestFormReducer(state: Request, action: FormAction): Request {
+  switch (action.type) {
+    case "SET_FIELD":
+      return { ...state, [action.payload.field]: action.payload.value };
+    case "SET_HEADERS":
+      return { ...state, headers: action.payload };
+    case "ADD_HEADER":
+      return { ...state, headers: [...state.headers, { key: "", value: "" }] };
+    case "REMOVE_HEADER":
+      return { ...state, headers: state.headers.filter((_, i) => i !== action.payload.index) };
+    case "SET_RESPONSE_ACTIONS":
+      return { ...state, responseActions: action.payload };
+    case "ADD_RESPONSE_ACTION":
+      return {
+        ...state,
+        responseActions: [
+          ...(state.responseActions ?? []),
+          { id: randomUUID(), source: "BODY_JSON", sourcePath: "", variableKey: "" },
+        ],
+      };
+    case "REMOVE_RESPONSE_ACTION":
+      return {
+        ...state,
+        responseActions: state.responseActions?.filter((_, i) => i !== action.payload.index),
+      };
+    default:
+      return state;
+  }
+}
+
 export function RequestForm({ collectionId, request: initialRequest }: RequestFormProps) {
   const { push } = useNavigation();
   const { execute: run, isLoading: isRunning } = useRunRequest();
@@ -30,7 +70,8 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
   const currentEnvironment = environments.find((e) => e.id === currentEnvironmentId);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [dirtyRequest, setDirtyRequest] = useState<Request>({
+
+  const [dirtyRequest, dispatch] = useReducer(requestFormReducer, {
     id: initialRequest.id ?? randomUUID(),
     title: initialRequest.title ?? "",
     url: initialRequest.url ?? "",
@@ -98,7 +139,8 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
             <Action
               title="Add Header"
               icon={Icon.Plus}
-              onAction={() => setDirtyRequest((old) => ({ ...old, headers: [...old.headers, { key: "", value: "" }] }))}
+              // onAction={() => setDirtyRequest((old) => ({ ...old, headers: [...old.headers, { key: "", value: "" }] }))}
+              onAction={() => dispatch({ type: "ADD_HEADER" })}
               shortcut={{ modifiers: ["cmd"], key: "h" }}
             />
             {activeHeaderIndex !== null && (
@@ -108,10 +150,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                 style={Action.Style.Destructive}
                 onAction={() => {
                   if (activeHeaderIndex === null) return;
-                  setDirtyRequest((old) => ({
-                    ...old,
-                    headers: old.headers.filter((_, i) => i !== activeHeaderIndex),
-                  }));
+                  dispatch({ type: "REMOVE_HEADER", payload: { index: activeHeaderIndex } });
                   setActiveHeaderIndex(null);
                   showToast({ style: Toast.Style.Success, title: "Header Removed" });
                 }}
@@ -121,15 +160,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
             <Action
               title="Add Response Action"
               icon={Icon.Plus}
-              onAction={() =>
-                setDirtyRequest((old) => ({
-                  ...old,
-                  responseActions: [
-                    ...(old.responseActions || []),
-                    { id: randomUUID(), source: "BODY_JSON", sourcePath: "", variableKey: "" },
-                  ],
-                }))
-              }
+              onAction={() => dispatch({ type: "ADD_RESPONSE_ACTION" })}
               shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
             />
             {activeActionIndex !== null && (
@@ -138,10 +169,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                 icon={Icon.Trash}
                 style={Action.Style.Destructive}
                 onAction={() => {
-                  setDirtyRequest((old) => ({
-                    ...old,
-                    responseActions: old.responseActions?.filter((_, i) => i !== activeActionIndex),
-                  }));
+                  dispatch({ type: "REMOVE_RESPONSE_ACTION", payload: { index: activeActionIndex } });
                   showToast({ style: Toast.Style.Success, title: "Action Removed" });
                 }}
                 shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
@@ -160,7 +188,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         id="method"
         title="HTTP Method"
         value={dirtyRequest.method}
-        onChange={(newValue) => setDirtyRequest((old) => ({ ...old, method: newValue as Method }))}
+        onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "method", value } })}
       >
         {Object.keys(METHODS).map((m) => (
           <Form.Dropdown.Item
@@ -179,14 +207,15 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         title="Title"
         placeholder="e.g., Get All Users"
         value={dirtyRequest.title}
-        onChange={(title) => setDirtyRequest((old) => ({ ...old, title }))}
+        // onChange={(title) => setDirtyRequest((old) => ({ ...old, title }))}
+        onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "title", value } })}
       />
       <Form.TextField
         id="url"
         title="URL / Path"
         placeholder="/users or https://api.example.com"
         value={dirtyRequest.url}
-        onChange={(url) => setDirtyRequest((old) => ({ ...old, url }))}
+        onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "url", value } })}
       />
 
       {(["POST", "PUT", "PATCH"] as Array<Method | undefined>).includes(dirtyRequest.method) && (
@@ -195,7 +224,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
           title="Body type"
           info=""
           value={dirtyRequest.bodyType}
-          onChange={(bodyType) => setDirtyRequest((old) => ({ ...old, bodyType: bodyType as Request["bodyType"] }))}
+          onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "bodyType", value } })}
         >
           <Form.Dropdown.Item title="NONE" value="NONE" />
           <Form.Dropdown.Item title="JSON" value="JSON" />
@@ -209,7 +238,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
           title="Body"
           placeholder="Enter JSON body"
           value={dirtyRequest.body}
-          onChange={(body) => setDirtyRequest((old) => ({ ...old, body }))}
+          onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "body", value } })}
         />
       )}
 
@@ -220,7 +249,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
           title="Params"
           placeholder="Enter params as a JSON object"
           value={dirtyRequest.params}
-          onChange={(params) => setDirtyRequest((old) => ({ ...old, params }))}
+          onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "params", value } })}
         />
       )}
 
@@ -232,14 +261,14 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
             title="Query"
             placeholder="Enter GraphQL query"
             value={dirtyRequest.query}
-            onChange={(query) => setDirtyRequest((old) => ({ ...old, query }))}
+            onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "query", value } })}
           />
           <Form.TextArea
             id="variables"
             title="Variables"
             placeholder="Enter variables as a JSON object"
             value={dirtyRequest.variables}
-            onChange={(variables) => setDirtyRequest((old) => ({ ...old, variables }))}
+            onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "variables", value } })}
           />
         </>
       )}
@@ -251,7 +280,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
             onActiveIndexChange={setActiveHeaderIndex}
             title="Headers"
             pairs={dirtyRequest.headers}
-            onPairsChange={(newPairs) => setDirtyRequest((old) => ({ ...old, headers: newPairs }))}
+            onPairsChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "headers", value } })}
             commonKeys={COMMON_HEADER_KEYS}
           />
         </>
@@ -262,7 +291,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
 
       <ResponseActionsEditor
         actions={dirtyRequest.responseActions ?? []}
-        onActionsChange={(newActions) => setDirtyRequest((prev) => ({ ...prev, responseActions: newActions }))}
+        onActionsChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "responseActions", value } })}
         onActiveIndexChange={setActiveActionIndex}
       />
     </Form>
