@@ -3,6 +3,7 @@ import { $environments, $currentEnvironmentId, deleteVariable, deleteEnvironment
 import { EnvironmentForm } from "./environment-form";
 import { VariableForm } from "./variable-form";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { GlobalActions } from "~/components/actions";
 
 function EnvironmentDropdown() {
   const { value: environments } = useAtom($environments);
@@ -29,47 +30,50 @@ function CommonActions() {
   const currentEnvironment = environments.find((e) => e.id === currentEnvironmentId);
   return (
     <>
-      {/* Actions for the selected environment */}
-      {currentEnvironment?.id && (
-        <Action.Push
-          title="Add variable"
-          target={<VariableForm environmentId={currentEnvironment?.id} />}
-          shortcut={{ modifiers: ["cmd"], key: "n" }}
-          icon={Icon.PlusCircle}
-        />
-      )}
+      <ActionPanel.Section>
+        {/* Actions for the selected environment */}
+        {currentEnvironment?.id && (
+          <Action.Push
+            title="Add variable"
+            target={<VariableForm environmentId={currentEnvironment?.id} />}
+            shortcut={{ modifiers: ["cmd"], key: "n" }}
+            icon={Icon.PlusCircle}
+          />
+        )}
 
-      <Action.Push
-        title="Edit Environment"
-        target={<EnvironmentForm environmentId={currentEnvironment?.id} />}
-        shortcut={{ modifiers: ["cmd", "shift"], key: "e" }}
-        icon={Icon.Pencil}
-      />
-      <Action.Push
-        title="Create New Environment"
-        target={<EnvironmentForm />}
-        shortcut={{ modifiers: ["cmd", "shift"], key: "n" }}
-        icon={Icon.PlusTopRightSquare}
-      />
-      {currentEnvironment && currentEnvironment.name !== "Globals" && (
-        <Action
-          title="Delete Environment"
-          style={Action.Style.Destructive}
-          icon={Icon.Trash}
-          onAction={async () => {
-            if (
-              await confirmAlert({
-                title: `Delete "${currentEnvironment.name}"?`,
-                message: "All variables within this environment will be deleted.",
-                primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
-              })
-            ) {
-              await deleteEnvironment(currentEnvironment.id);
-              await showToast({ style: Toast.Style.Success, title: "Environment Deleted" });
-            }
-          }}
+        <Action.Push
+          title="Edit Environment"
+          target={<EnvironmentForm environmentId={currentEnvironment?.id} />}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "e" }}
+          icon={Icon.Pencil}
         />
-      )}
+        <Action.Push
+          title="Create New Environment"
+          target={<EnvironmentForm />}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "n" }}
+          icon={Icon.PlusTopRightSquare}
+        />
+        {currentEnvironment && currentEnvironment.name !== "Globals" && (
+          <Action
+            title="Delete Environment"
+            style={Action.Style.Destructive}
+            icon={Icon.Trash}
+            onAction={async () => {
+              if (
+                await confirmAlert({
+                  title: `Delete "${currentEnvironment.name}"?`,
+                  message: "All variables within this environment will be deleted.",
+                  primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
+                })
+              ) {
+                await deleteEnvironment(currentEnvironment.id);
+                await showToast({ style: Toast.Style.Success, title: "Environment Deleted" });
+              }
+            }}
+          />
+        )}
+      </ActionPanel.Section>
+      <GlobalActions />
     </>
   );
 }
@@ -123,9 +127,7 @@ export function ManageVariablesList() {
                 />
               )}
 
-              <ActionPanel.Section>
-                <CommonActions />
-              </ActionPanel.Section>
+              <CommonActions />
             </ActionPanel>
           }
         />

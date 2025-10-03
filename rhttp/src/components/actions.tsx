@@ -2,11 +2,9 @@ import {
   Action,
   ActionPanel,
   Clipboard,
-  environment,
   getPreferenceValues,
   Icon,
   Keyboard,
-  KeyboardShortcut,
   open,
   showToast,
   Toast,
@@ -17,7 +15,7 @@ import { $currentEnvironmentId, $environments } from "../store/environments";
 import { ManageVariablesList } from "../views/manage-variables-list";
 import { HistoryView } from "../views/history-list-view";
 import { $isHistoryEnabled } from "../store/settings";
-import { collectionSchema, environmentsSchema, historySchema, newCollectionSchema } from "../types";
+import { newCollectionSchema } from "../types";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { parseCurlToRequest } from "~/utils/curl-to-request";
 import { RequestForm } from "~/views/request-form";
@@ -27,9 +25,7 @@ import path from "path";
 import fs from "fs/promises";
 import os from "os";
 import { randomUUID } from "crypto";
-import z from "zod";
-import { backupAllData, exportAtomToFile } from "~/utils/backup";
-import { $history } from "~/store/history";
+import { backupAllData } from "~/utils/backup";
 
 async function handleSelectEnvironment(envId: string) {
   const currentCollectionId = $currentCollectionId.get();
