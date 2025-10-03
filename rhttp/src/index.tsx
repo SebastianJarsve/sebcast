@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Alert, confirmAlert, Icon, List, showToast, Toast, useNavigation } from "@raycast/api";
+import { Action, ActionPanel, Alert, confirmAlert, Icon, List, showToast, Toast } from "@raycast/api";
 import {
   $collections,
   $currentCollectionId,
@@ -9,23 +9,31 @@ import {
 } from "./store";
 import { CollectionForm } from "~/views/collection-form";
 import { RequestForm } from "~/views/request-form";
-import { Collection } from "~/types";
-import { runRequest } from "~/utils";
-import { ResponseView } from "~/views/response";
-import axios from "axios";
-import { ErrorDetail } from "~/views/error-view";
-import { z } from "zod";
+import { Collection, Request } from "~/types";
 import { $currentEnvironmentId, $environments, initializeDefaultEnvironment } from "~/store/environments";
-import { CollectionActions, GlobalActions, NewRequestFromCurlAction } from "~/components/actions";
+import { CollectionActions, GlobalActions, NewRequestFromCurlAction, SortRequestsMenu } from "~/components/actions";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
-import { DEFAULT_COLLECTION_NAME } from "~/constants";
+import { DEFAULT_COLLECTION_NAME, METHODS, SORT_OPTIONS } from "~/constants";
 import { generateCurlCommand } from "./utils/curl-to-request";
 import { $cookies } from "./store/cookies";
 import { $history } from "./store/history";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PersistentAtom } from "@sebastianjarsve/persistent-atom/.";
+import { useRunRequest } from "./hooks/use-run-request";
+import { resolveVariables } from "./utils";
+import { substitutePlaceholders } from "./utils/environment-utils";
+import { $collectionSortPreferences } from "./store/settings";
 
-function CommonActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
+/**
+ * CommonActions contains view-specific actions that need to be available
+ * in both the List's default ActionPanel and individual List.Item ActionPanels.
+ *
+ * This is necessary because Raycast's List.Item ActionPanel completely overrides
+ * the List's ActionPanel, so we need to explicitly include these in both places.
+ *
+ * For truly global actions available everywhere, see GlobalActions in ~/components/actions.tsx
+ */
+function CommonActions({ currentCollection }: { currentCollection: Collection | null }) {
   return (
     <>
       {currentCollection && (
@@ -38,6 +46,19 @@ function CommonActions({ currentCollection: currentCollection }: { currentCollec
         />
       )}
       <NewRequestFromCurlAction />
+      {currentCollection && (
+        <SortRequestsMenu
+          currentCollection={currentCollection}
+          onSort={async (sortKey) => {
+            const prefs = $collectionSortPreferences.get();
+            $collectionSortPreferences.set({
+              ...prefs,
+              [currentCollection.id]: sortKey,
+            });
+            await showToast({ title: "Requests Sorted" });
+          }}
+        />
+      )}
 
       <CollectionActions>
         {currentCollection && currentCollection.title !== DEFAULT_COLLECTION_NAME && (
@@ -98,7 +119,6 @@ export function CollectionDropdown() {
 
         // 3. Set the current collection ID to the new value.
         $currentCollectionId.set(newValue);
-        console.log("HELLO?", newValue);
       }}
     >
       <List.Dropdown.Section title="Collections">
@@ -127,17 +147,25 @@ function useStoresReady(atoms: PersistentAtom<any>[]) {
 
 async function initializeApp() {
   // Use Promise.allSettled to wait for all promises, even if some fail.
-  const results = await Promise.allSettled([$collections.ready, $environments.ready, $cookies.ready, $history.ready]);
+  const stores = [
+    { atom: $collections, name: "Collections" },
+    { atom: $environments, name: "Environments" },
+    { atom: $cookies, name: "Cookies" },
+    { atom: $history, name: "History" },
+  ];
+
+  const results = await Promise.allSettled(stores.map((s) => s.atom.ready));
 
   // Check if any of the hydration promises were rejected.
-  const failedStores = results.filter((result) => result.status === "rejected");
+  const failedStores = results
+    .map((result, index) => ({ result, store: stores[index].name }))
+    .filter(({ result }) => result.status === "rejected");
   if (failedStores.length > 0) {
-    // If so, log the details and show a single toast to the user.
-    failedStores.forEach((failure) => console.error((failure as PromiseRejectedResult).reason));
+    const storeList = failedStores.map(({ store }) => store).join(", ");
     await showToast({
       style: Toast.Style.Failure,
       title: "Failed to Load Some Data",
-      message: "A data file may have been corrupted and has been reset.",
+      message: `Failed stores: ${storeList}`,
     });
   }
 
@@ -145,6 +173,89 @@ async function initializeApp() {
   // stores that failed to load and are currently empty.
   initializeDefaultCollection();
   initializeDefaultEnvironment();
+}
+
+interface RequestListItemProps {
+  request: Request;
+  currentCollection: Collection;
+  collections: readonly Collection[];
+}
+
+function RequestListItem({ request, currentCollection, collections }: RequestListItemProps) {
+  const { execute: run } = useRunRequest();
+  const variables = resolveVariables();
+
+  return (
+    <List.Item
+      key={request.id}
+      title={substitutePlaceholders(request.title, variables) ?? request.url}
+      subtitle={request.title ? substitutePlaceholders(request.url, variables) : undefined}
+      accessories={[
+        {
+          tag: {
+            value: request.method,
+            color: METHODS[request.method]?.color,
+          },
+        },
+      ]}
+      actions={
+        <ActionPanel>
+          <Action.Push
+            key={"edit-request"}
+            title="Open request"
+            icon={Icon.ChevronRight}
+            target={<RequestForm collectionId={currentCollection.id} request={request} />}
+            shortcut={{ modifiers: ["cmd"], key: "e" }}
+          />
+          <Action
+            title="Run request"
+            icon={Icon.Bolt}
+            shortcut={{ modifiers: ["cmd"], key: "o" }}
+            onAction={() => run(request, currentCollection)}
+          />
+          <Action.CopyToClipboard
+            title="Copy as cURL"
+            icon={Icon.Terminal}
+            content={generateCurlCommand(request, currentCollection)}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+          />
+          <CommonActions currentCollection={currentCollection} />
+          <ActionPanel.Submenu
+            title="Move request to another collection"
+            icon={Icon.Switch}
+            shortcut={{ modifiers: ["cmd"], key: "m" }}
+          >
+            {collections.map((c) => (
+              <Action
+                key={`col-${c.id}`}
+                title={`Move to "${c.title}"`}
+                onAction={() => moveRequest(request.id, currentCollection.id, c.id)}
+              />
+            ))}
+          </ActionPanel.Submenu>
+          <Action
+            title="Delete Request"
+            icon={Icon.Trash}
+            style={Action.Style.Destructive}
+            shortcut={{ modifiers: ["ctrl"], key: "x" }}
+            onAction={async () => {
+              if (
+                await confirmAlert({
+                  title: "Delete Request?",
+                  message: "Are you sure you want to delete this request? This cannot be undone.",
+                  primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
+                })
+              ) {
+                await deleteRequest(currentCollection.id, request.id);
+                await showToast({ style: Toast.Style.Success, title: "Request Deleted" });
+              }
+            }}
+          />
+          <GlobalActions />
+        </ActionPanel>
+      }
+    />
+  );
 }
 
 export default function RequestList() {
@@ -160,16 +271,43 @@ export default function RequestList() {
     $history,
     $cookies,
   ]);
+
+  const { isLoading } = useRunRequest();
+
   const { value: collections } = useAtom($collections);
-  const { value: curentCollectionId } = useAtom($currentCollectionId);
-  const currentCollection = collections.find((c) => c.id === curentCollectionId);
+  const { value: currentCollectionId } = useAtom($currentCollectionId);
+  const currentCollection = collections.find((c) => c.id === currentCollectionId);
   const { value: currentEnvironmentId } = useAtom($currentEnvironmentId);
   const { value: environments } = useAtom($environments);
   const currentEnvironment = environments.find((e) => e.id === currentEnvironmentId);
-  const { push } = useNavigation();
+
+  const { value: sortPreferences } = useAtom($collectionSortPreferences);
+  const sortBy = currentCollection ? sortPreferences[currentCollection.id] : undefined;
+
+  const displayedRequests = useMemo(() => {
+    if (!currentCollection?.requests) return [];
+
+    const requests = [...currentCollection.requests];
+
+    switch (sortBy) {
+      case SORT_OPTIONS.NAME_ASC:
+        return requests.sort((a, b) => (a.title || a.url).localeCompare(b.title || b.url));
+      case SORT_OPTIONS.NAME_DESC:
+        return requests.sort((a, b) => (b.title || b.url).localeCompare(a.title || a.url));
+      case SORT_OPTIONS.METHOD:
+        const methodOrder = ["GET", "POST", "PUT", "PATCH", "DELETE", "GRAPHQL"];
+        return requests.sort((a, b) => methodOrder.indexOf(a.method) - methodOrder.indexOf(b.method));
+      case SORT_OPTIONS.URL:
+        return requests.sort((a, b) => a.url.localeCompare(b.url));
+      case SORT_OPTIONS.MANUAL:
+      default:
+        return requests; // Original order
+    }
+  }, [currentCollection, sortBy]);
+
   return (
     <List
-      isLoading={!isReady}
+      isLoading={!isReady || isLoading}
       navigationTitle={`Environment = ${currentEnvironment?.name}`}
       searchBarPlaceholder="Search requests..."
       searchBarAccessory={<CollectionDropdown />}
@@ -181,125 +319,13 @@ export default function RequestList() {
       }
     >
       {currentCollection &&
-        currentCollection.requests?.map((request) => {
+        displayedRequests?.map((request) => {
           return (
-            <List.Item
+            <RequestListItem
               key={request.id}
-              title={request.title ?? request.url}
-              actions={
-                <ActionPanel>
-                  <Action.Push
-                    key={"edit-request"}
-                    title="Open request"
-                    icon={Icon.ChevronRight}
-                    target={<RequestForm collectionId={currentCollection.id} request={request} />}
-                    shortcut={{ modifiers: ["cmd"], key: "e" }}
-                  />
-                  <Action
-                    title="Run request"
-                    icon={Icon.Bolt}
-                    shortcut={{ modifiers: ["cmd"], key: "o" }}
-                    onAction={async () => {
-                      // 1. Show a loading toast
-                      const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
-                      try {
-                        // 2. Call our utility function
-                        const response = await runRequest(request, currentCollection);
-
-                        // 3. On success, hide the toast and push the response view
-                        toast.hide();
-                        if (!response) throw "Response is undefined";
-                        push(
-                          <ResponseView
-                            sourceRequestId={request.id}
-                            requestSnapshot={request}
-                            response={{
-                              requestMethod: request.method,
-                              status: response.status,
-                              statusText: response.statusText,
-                              headers: response.headers as Record<string, string>,
-                              body: response.data,
-                            }}
-                          />,
-                        );
-                      } catch (error) {
-                        if (axios.isAxiosError(error) && error.response) {
-                          // This is an API error (e.g., 404, 500). Show the detailed view.
-                          toast.hide();
-                          push(
-                            <ResponseView
-                              sourceRequestId={request.id}
-                              requestSnapshot={request}
-                              response={{
-                                requestMethod: request.method,
-                                status: error.response.status,
-                                statusText: error.response.statusText,
-                                headers: error.response.headers as Record<string, string>,
-                                body: error.response.data,
-                              }}
-                            />,
-                          );
-                        } else if (error instanceof z.ZodError) {
-                          toast.hide();
-                          // This is a validation error from our schema -> Show the ErrorDetail view
-                          push(<ErrorDetail error={error} />);
-                        } else if (axios.isAxiosError(error) && error.code === "ENOTFOUND") {
-                          // This is a DNS/network error, which often means a VPN isn't connected.
-                          toast.style = Toast.Style.Failure;
-                          toast.title = "Host Not Found";
-                          toast.message = "Check your internet or VPN connection.";
-                        } else {
-                          // This is a network error (e.g., connection refused) or another issue.
-                          // For these, a toast is appropriate.
-                          toast.style = Toast.Style.Failure;
-                          toast.title = "Request Failed";
-                          toast.message = String(error);
-                        }
-                      }
-                    }}
-                  />
-                  <Action.CopyToClipboard
-                    title="Copy as cURL"
-                    icon={Icon.Terminal}
-                    content={generateCurlCommand(request, currentCollection!)}
-                    shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
-                  />
-                  <CommonActions currentCollection={currentCollection} />
-                  <ActionPanel.Submenu
-                    title="Move request to another collection"
-                    icon={Icon.Switch}
-                    shortcut={{ modifiers: ["cmd"], key: "m" }}
-                  >
-                    {collections.map((c) => (
-                      <Action
-                        key={`col-${c.id}`}
-                        title={`Move to "${c.title}"`}
-                        onAction={() => moveRequest(request.id, currentCollection.id, c.id)}
-                      />
-                    ))}
-                  </ActionPanel.Submenu>
-                  <Action
-                    title="Delete Request"
-                    icon={Icon.Trash}
-                    style={Action.Style.Destructive}
-                    shortcut={{ modifiers: ["ctrl"], key: "x" }}
-                    onAction={async () => {
-                      if (
-                        await confirmAlert({
-                          title: "Delete Request?",
-                          message: "Are you sure you want to delete this request? This cannot be undone.",
-                          primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
-                        })
-                      ) {
-                        await deleteRequest(currentCollection!.id, request.id);
-                        await showToast({ style: Toast.Style.Success, title: "Request Deleted" });
-                      }
-                    }}
-                  />
-
-                  <GlobalActions />
-                </ActionPanel>
-              }
+              request={request}
+              currentCollection={currentCollection}
+              collections={collections}
             />
           );
         })}

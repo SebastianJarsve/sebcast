@@ -1,4 +1,3 @@
-// src/components/KeyValueEditor.tsx
 import { Form } from "@raycast/api";
 import { Fragment, useState } from "react";
 
@@ -19,13 +18,6 @@ export function KeyValueEditor({ title, pairs, onPairsChange, commonKeys, onActi
     <>
       <Form.Description text={title} />
       {pairs.map((pair, index) => {
-        // Build the list of options for the dropdown if needed
-        const currentKeysInUse = pairs.map((p) => p.key).filter(Boolean);
-        const searchText = keySearchTexts[index];
-        const allOptions = Array.from(
-          new Set([...(commonKeys ?? []), ...currentKeysInUse, searchText].filter(Boolean)),
-        );
-
         const handleKeyChange = (newKey: string) => {
           const newPairs = [...pairs];
           newPairs[index].key = newKey;
@@ -38,6 +30,10 @@ export function KeyValueEditor({ title, pairs, onPairsChange, commonKeys, onActi
           onPairsChange(newPairs);
         };
 
+        const currentKeysInUse = pairs.map((p) => p.key).filter(Boolean);
+        const searchText = keySearchTexts[index];
+        const allOptions = Array.from(new Set([...(commonKeys ?? []), ...currentKeysInUse].filter(Boolean)));
+
         return (
           <Fragment key={index}>
             {commonKeys ? (
@@ -47,6 +43,7 @@ export function KeyValueEditor({ title, pairs, onPairsChange, commonKeys, onActi
                 title="Key"
                 value={pair.key}
                 onFocus={() => onActiveIndexChange(index)}
+                filtering={true}
                 onChange={handleKeyChange}
                 onSearchTextChange={(text) => {
                   const newTexts = [...keySearchTexts];
@@ -57,6 +54,8 @@ export function KeyValueEditor({ title, pairs, onPairsChange, commonKeys, onActi
                 {allOptions.map((key) => (
                   <Form.Dropdown.Item key={key} value={key} title={key} />
                 ))}
+
+                {searchText && <Form.Dropdown.Item key={searchText} value={searchText} title={`Add "${searchText}"`} />}
               </Form.Dropdown>
             ) : (
               // Otherwise, render a simple TextField

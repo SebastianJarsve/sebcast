@@ -24,6 +24,7 @@ import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { useMemo } from "react";
 import { RequestForm } from "./request-form";
 import { $environments } from "~/store/environments";
+import { resolveVariables, substitutePlaceholders } from "~/utils/environment-utils";
 
 // Helper function to get a color for the status code accessory
 function getStatusAccessory(status: number): List.Item.Accessory {
@@ -38,6 +39,29 @@ function getStatusAccessory(status: number): List.Item.Accessory {
 function getMethodAccessory(method: Method): List.Item.Accessory {
   const color = METHODS[method]?.color ?? Color.PrimaryText;
   return { tag: { value: method, color } };
+}
+
+function CommonActions() {
+  return (
+    <Action
+      title="Clear All History"
+      icon={Icon.Trash}
+      style={Action.Style.Destructive}
+      shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
+      onAction={async () => {
+        if (
+          await confirmAlert({
+            title: "Clear All History?",
+            message: "This will permanently delete all saved request entries.",
+            primaryAction: { title: "Clear History", style: Alert.ActionStyle.Destructive },
+          })
+        ) {
+          clearHistory();
+          showToast({ title: "History Cleared" });
+        }
+      }}
+    />
+  );
 }
 
 interface HistoryViewProps {
@@ -71,24 +95,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
       navigationTitle={navigationTitle}
       actions={
         <ActionPanel>
-          <Action
-            title="Clear All History"
-            icon={Icon.Trash}
-            style={Action.Style.Destructive}
-            shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
-            onAction={async () => {
-              if (
-                await confirmAlert({
-                  title: "Clear All History?",
-                  message: "This will permanently delete all saved request entries.",
-                  primaryAction: { title: "Clear History", style: Alert.ActionStyle.Destructive },
-                })
-              ) {
-                clearHistory();
-                showToast({ title: "History Cleared" });
-              }
-            }}
-          />
+          <CommonActions />
         </ActionPanel>
       }
     >
@@ -111,7 +118,9 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
           return (
             <List.Item
               key={entry.id}
-              title={entry.requestSnapshot.title || entry.requestSnapshot.url}
+              title={
+                substitutePlaceholders(entry.requestSnapshot.title, resolveVariables()) || entry.requestSnapshot.url
+              }
               subtitle={subtitle}
               accessories={[
                 getMethodAccessory(entry.requestSnapshot.method),
@@ -245,24 +254,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                     }}
                   />
                   <ActionPanel.Section>
-                    <Action
-                      title="Clear All History"
-                      icon={Icon.Trash}
-                      style={Action.Style.Destructive}
-                      shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
-                      onAction={async () => {
-                        if (
-                          await confirmAlert({
-                            title: "Clear All History?",
-                            message: "This will permanently delete all saved request entries.",
-                            primaryAction: { title: "Clear History", style: Alert.ActionStyle.Destructive },
-                          })
-                        ) {
-                          clearHistory();
-                          showToast({ title: "History Cleared" });
-                        }
-                      }}
-                    />
+                    <CommonActions />
                   </ActionPanel.Section>
                 </ActionPanel>
               }

@@ -1,7 +1,7 @@
 // src/store/history.ts
 import { randomUUID } from "crypto";
 import { persistentAtom } from "@sebastianjarsve/persistent-atom";
-import { HistoryEntry, historySchema, ResponseData, NewRequest, Variable, Variables, variableSchema } from "../types";
+import { HistoryEntry, historySchema, ResponseData, NewRequest } from "../types";
 import { createRaycastFileAdapter } from "../lib/adapters";
 import { $currentEnvironmentId } from "./environments";
 
@@ -50,6 +50,5 @@ export async function deleteHistoryEntry(entryId: string) {
  * Clears all entries from the history log.
  */
 export async function clearHistory() {
-  console.warn("CLEARING HISTORY");
   await $history.setAndFlush([]);
 }

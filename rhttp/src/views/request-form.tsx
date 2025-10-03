@@ -1,61 +1,107 @@
-// RequestForm.tsx
 import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
-import { useState } from "react";
-import { NewRequest, Request, Headers, Method, ResponseAction } from "../types";
-import { $collections, $currentCollectionId, createRequest, updateRequest } from "../store";
-import { COMMON_HEADER_KEYS, METHODS } from "../constants"; // Assuming you have a constants file for METHODS etc.
+import { useReducer, useState } from "react";
+import { NewRequest, Request, Method } from "~/types";
+import { $collections, $currentCollectionId, createRequest, updateRequest } from "~/store";
+import { COMMON_HEADER_KEYS, METHODS } from "~/constants";
 import { z } from "zod";
 import { ErrorDetail } from "./error-view";
-import { runRequest } from "../utils";
-import { ResponseView } from "./response";
-import axios from "axios";
 import { randomUUID } from "crypto";
-import { ResponseActionsEditor } from "../components/response-actions-editor";
-import { KeyValueEditor } from "../components/key-value-editor";
+import { ResponseActionsEditor } from "~/components/response-actions-editor";
+import { KeyValueEditor } from "~/components/key-value-editor";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { CopyVariableAction, GlobalActions } from "~/components/actions";
 import { $currentEnvironmentId, $environments } from "~/store/environments";
+import { useRunRequest } from "~/hooks/use-run-request";
 
 interface RequestFormProps {
   collectionId: string;
   request: Partial<Request>;
 }
 
+type FormAction =
+  | { type: "SET_FIELD"; payload: { field: keyof Request; value: any } }
+  | { type: "SET_HEADERS"; payload: Request["headers"] }
+  | { type: "SET_RESPONSE_ACTIONS"; payload: Request["responseActions"] }
+  | { type: "ADD_HEADER" }
+  | { type: "REMOVE_HEADER"; payload: { index: number } }
+  | { type: "ADD_RESPONSE_ACTION" }
+  | { type: "REMOVE_RESPONSE_ACTION"; payload: { index: number } };
+
+// This function contains ALL the logic for updating the state
+function requestFormReducer(state: Request, action: FormAction): Request {
+  switch (action.type) {
+    case "SET_FIELD":
+      return { ...state, [action.payload.field]: action.payload.value };
+    case "SET_HEADERS":
+      return { ...state, headers: action.payload };
+    case "ADD_HEADER":
+      return { ...state, headers: [...state.headers, { key: "", value: "" }] };
+    case "REMOVE_HEADER":
+      return { ...state, headers: state.headers.filter((_, i) => i !== action.payload.index) };
+    case "SET_RESPONSE_ACTIONS":
+      return { ...state, responseActions: action.payload };
+    case "ADD_RESPONSE_ACTION":
+      return {
+        ...state,
+        responseActions: [
+          ...(state.responseActions ?? []),
+          { id: randomUUID(), source: "BODY_JSON", sourcePath: "", variableKey: "" },
+        ],
+      };
+    case "REMOVE_RESPONSE_ACTION":
+      return {
+        ...state,
+        responseActions: state.responseActions?.filter((_, i) => i !== action.payload.index),
+      };
+    default:
+      return state;
+  }
+}
+
 export function RequestForm({ collectionId, request: initialRequest }: RequestFormProps) {
   const { push } = useNavigation();
+  const { execute: run, isLoading: isRunning } = useRunRequest();
   const { value: collections } = useAtom($collections);
   const { value: currentCollectionId } = useAtom($currentCollectionId);
-  const currentCollection = collections.find((c) => c.id === currentCollectionId);
-  const { value: environments } = useAtom($environments);
   const { value: currentEnvironmentId } = useAtom($currentEnvironmentId);
+  const { value: environments } = useAtom($environments);
+
+  const currentCollection = collections.find((c) => c.id === currentCollectionId);
   const currentEnvironment = environments.find((e) => e.id === currentEnvironmentId);
 
-  const request = initialRequest;
-  const [currentRequestId, setCurrentRequestId] = useState(initialRequest.id);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [method, setMethod] = useState(request?.method);
-  const [headers, setHeaders] = useState<Headers>(request?.headers ?? []);
+  const [dirtyRequest, dispatch] = useReducer(requestFormReducer, {
+    id: initialRequest.id ?? randomUUID(),
+    title: initialRequest.title ?? "",
+    url: initialRequest.url ?? "",
+    method: initialRequest.method ?? "GET",
+    headers: initialRequest.headers ?? [],
+    body: initialRequest.body ?? "",
+    bodyType: initialRequest.bodyType ?? "NONE",
+    params: initialRequest.params ?? "",
+    query: initialRequest.query ?? "",
+    responseActions: initialRequest.responseActions ?? [],
+  });
 
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-
-  const [responseActions, setResponseActions] = useState<ResponseAction[]>(request?.responseActions ?? []);
+  const [activeHeaderIndex, setActiveHeaderIndex] = useState<number | null>(null);
   const [activeActionIndex, setActiveActionIndex] = useState<number | null>(null);
-  async function handleSave(values: Omit<Request, "id" | "headers">) {
-    if (isSaving) return;
-    setIsSaving(true);
 
+  async function handleRun() {
+    if (!currentCollection) return;
+    run(dirtyRequest, currentCollection);
+  }
+
+  async function handleSave() {
+    setIsSaving(true);
     try {
-      const requestData = { ...values, method, headers, responseActions };
-      if (currentRequestId) {
-        await updateRequest(collectionId, currentRequestId, requestData);
+      if (initialRequest.id) {
+        await updateRequest(collectionId, dirtyRequest.id, dirtyRequest);
         showToast({ title: "Request Updated" });
       } else {
-        const newReq = await createRequest(collectionId, requestData as NewRequest);
-        setCurrentRequestId(newReq.id);
+        await createRequest(collectionId, dirtyRequest as NewRequest);
         showToast({ title: "Request Created" });
       }
-      // pop();
     } catch (error) {
       // This block runs if Zod's .parse() throws an error.
       if (error instanceof z.ZodError) {
@@ -73,77 +119,17 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
     }
   }
 
-  async function handleRun(request: Omit<Request, "id">) {
-    // 1. Show a loading toast
-    const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
-    const requestData: Request = { ...request, headers, responseActions, id: currentRequestId ?? randomUUID() };
-    try {
-      // 2. Call our utility function
-      if (!currentCollection) return;
-      const response = await runRequest(requestData, currentCollection);
-
-      // 3. On success, hide the toast and push the response view
-      toast.hide();
-      if (!response) throw response;
-      push(
-        <ResponseView
-          sourceRequestId={currentRequestId}
-          requestSnapshot={requestData}
-          response={{
-            requestMethod: request.method,
-            status: response.status,
-            statusText: response.statusText,
-            headers: response.headers as Record<string, string>,
-            body: response.data,
-          }}
-        />,
-      );
-    } catch (error) {
-      // Check if it's an Axios error with a response from the server
-      if (axios.isAxiosError(error) && error.response) {
-        // This is an API error (e.g., 404, 500). Show the detailed view.
-        toast.hide();
-        push(
-          <ResponseView
-            requestSnapshot={requestData}
-            response={{
-              requestMethod: request.method,
-              status: error.response.status,
-              statusText: error.response.statusText,
-              headers: error.response.headers as Record<string, string>,
-              body: error.response.data,
-            }}
-          />,
-        );
-      } else if (error instanceof z.ZodError) {
-        toast.hide();
-        // This is a validation error from our schema -> Show the ErrorDetail view
-        push(<ErrorDetail error={error} />);
-      } else if (axios.isAxiosError(error) && error.code === "ENOTFOUND") {
-        // This is a DNS/network error, which often means a VPN isn't connected.
-        toast.style = Toast.Style.Failure;
-        toast.title = "Host Not Found";
-        toast.message = "Check your internet or VPN connection.";
-      } else {
-        // This is a network error (e.g., connection refused) or another issue.
-        // For these, a toast is appropriate.
-        toast.style = Toast.Style.Failure;
-        toast.title = "Request Failed";
-        toast.message = String(error);
-      }
-    }
-  }
-
   return (
     <Form
+      isLoading={isRunning || isSaving}
       navigationTitle={`Environment = ${currentEnvironment?.name}`}
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Run Request" icon={Icon.Bolt} onSubmit={handleRun} />
-          <Action.SubmitForm
+          <Action title="Run Request" icon={Icon.Bolt} onAction={handleRun} />
+          <Action
             title="Save Request"
             icon={Icon.HardDrive}
-            onSubmit={handleSave}
+            onAction={handleSave}
             shortcut={{ modifiers: ["cmd"], key: "s" }}
           />
 
@@ -153,18 +139,19 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
             <Action
               title="Add Header"
               icon={Icon.Plus}
-              onAction={() => setHeaders([...headers, { key: "", value: "" }])}
+              // onAction={() => setDirtyRequest((old) => ({ ...old, headers: [...old.headers, { key: "", value: "" }] }))}
+              onAction={() => dispatch({ type: "ADD_HEADER" })}
               shortcut={{ modifiers: ["cmd"], key: "h" }}
             />
-            {activeIndex !== null && (
+            {activeHeaderIndex !== null && (
               <Action
                 title="Remove Header"
                 icon={Icon.Trash}
                 style={Action.Style.Destructive}
                 onAction={() => {
-                  if (activeIndex === null) return;
-                  setHeaders(headers.filter((_, i) => i !== activeIndex));
-                  setActiveIndex(null);
+                  if (activeHeaderIndex === null) return;
+                  dispatch({ type: "REMOVE_HEADER", payload: { index: activeHeaderIndex } });
+                  setActiveHeaderIndex(null);
                   showToast({ style: Toast.Style.Success, title: "Header Removed" });
                 }}
                 shortcut={{ modifiers: ["ctrl"], key: "h" }}
@@ -173,12 +160,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
             <Action
               title="Add Response Action"
               icon={Icon.Plus}
-              onAction={() =>
-                setResponseActions([
-                  ...responseActions,
-                  { id: randomUUID(), source: "BODY_JSON", sourcePath: "", variableKey: "" },
-                ])
-              }
+              onAction={() => dispatch({ type: "ADD_RESPONSE_ACTION" })}
               shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
             />
             {activeActionIndex !== null && (
@@ -187,7 +169,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                 icon={Icon.Trash}
                 style={Action.Style.Destructive}
                 onAction={() => {
-                  setResponseActions(responseActions.filter((_, i) => i !== activeActionIndex));
+                  dispatch({ type: "REMOVE_RESPONSE_ACTION", payload: { index: activeActionIndex } });
                   showToast({ style: Toast.Style.Success, title: "Action Removed" });
                 }}
                 shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
@@ -199,14 +181,14 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
       }
     >
       <Form.Description
-        title={`Collection: ${currentCollection?.title ?? ""}`}
-        text={`Environment: ${currentEnvironment?.name ?? ""}`}
+        title={`Collection: ${currentCollection?.title ?? "Unknown"}`}
+        text={`Environment: ${currentEnvironment?.name ?? "None"}`}
       />
       <Form.Dropdown
         id="method"
         title="HTTP Method"
-        value={method}
-        onChange={(newValue) => setMethod(newValue as Method)}
+        value={dirtyRequest.method}
+        onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "method", value } })}
       >
         {Object.keys(METHODS).map((m) => (
           <Form.Dropdown.Item
@@ -220,57 +202,85 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
           />
         ))}
       </Form.Dropdown>
-      <Form.TextField id="title" title="Title" placeholder="e.g., Get All Users" defaultValue={request?.title} />
+      <Form.TextField
+        id="title"
+        title="Title"
+        placeholder="e.g., Get All Users"
+        value={dirtyRequest.title}
+        // onChange={(title) => setDirtyRequest((old) => ({ ...old, title }))}
+        onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "title", value } })}
+      />
       <Form.TextField
         id="url"
         title="URL / Path"
         placeholder="/users or https://api.example.com"
-        defaultValue={request?.url}
+        value={dirtyRequest.url}
+        onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "url", value } })}
       />
 
-      {(["POST", "PUT", "PATCH"] as Array<Method | undefined>).includes(method) && (
-        <Form.Dropdown id="bodyType" defaultValue="JSON" title="Body type" info="">
+      {(["POST", "PUT", "PATCH"] as Array<Method | undefined>).includes(dirtyRequest.method) && (
+        <Form.Dropdown
+          id="bodyType"
+          title="Body type"
+          info=""
+          value={dirtyRequest.bodyType}
+          onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "bodyType", value } })}
+        >
           <Form.Dropdown.Item title="NONE" value="NONE" />
           <Form.Dropdown.Item title="JSON" value="JSON" />
           <Form.Dropdown.Item title="FORM_DATA" value="FORM_DATA" />
         </Form.Dropdown>
       )}
       {/* Conditional fields for Body, Params, etc. */}
-      {method && ["POST", "PUT", "PATCH"].includes(method) && (
-        <Form.TextArea id="body" title="Body" placeholder="Enter JSON body" defaultValue={request?.body} />
+      {METHODS[dirtyRequest.method].bodyAllowed && (
+        <Form.TextArea
+          id="body"
+          title="Body"
+          placeholder="Enter JSON body"
+          value={dirtyRequest.body}
+          onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "body", value } })}
+        />
       )}
 
       {/* Show Params field for GET */}
-      {method === "GET" && (
+      {dirtyRequest.method === "GET" && (
         <Form.TextArea
           id="params"
           title="Params"
           placeholder="Enter params as a JSON object"
-          defaultValue={request?.params}
+          value={dirtyRequest.params}
+          onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "params", value } })}
         />
       )}
 
       {/* Show Query and Variables fields for GraphQL */}
-      {method === "GRAPHQL" && (
+      {dirtyRequest.method === "GRAPHQL" && (
         <>
-          <Form.TextArea id="query" title="Query" placeholder="Enter GraphQL query" defaultValue={request?.query} />
+          <Form.TextArea
+            id="query"
+            title="Query"
+            placeholder="Enter GraphQL query"
+            value={dirtyRequest.query}
+            onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "query", value } })}
+          />
           <Form.TextArea
             id="variables"
             title="Variables"
             placeholder="Enter variables as a JSON object"
-            defaultValue={request?.variables}
+            value={dirtyRequest.variables}
+            onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "variables", value } })}
           />
         </>
       )}
 
-      {headers.length > 0 && (
+      {dirtyRequest.headers.length > 0 && (
         <>
           <Form.Separator />
           <KeyValueEditor
-            onActiveIndexChange={setActiveIndex}
+            onActiveIndexChange={setActiveHeaderIndex}
             title="Headers"
-            pairs={headers}
-            onPairsChange={setHeaders}
+            pairs={dirtyRequest.headers}
+            onPairsChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "headers", value } })}
             commonKeys={COMMON_HEADER_KEYS}
           />
         </>
@@ -278,9 +288,10 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
 
       <Form.Separator />
       <Form.Description text="Response Actions" />
+
       <ResponseActionsEditor
-        actions={responseActions}
-        onActionsChange={setResponseActions}
+        actions={dirtyRequest.responseActions ?? []}
+        onActionsChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "responseActions", value } })}
         onActiveIndexChange={setActiveActionIndex}
       />
     </Form>

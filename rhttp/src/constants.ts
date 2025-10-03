@@ -39,10 +39,20 @@ export const COMMON_HEADER_KEYS = [
  * This centralizes the configuration for each method.
  */
 export const METHODS = {
-  GET: { color: Color.Blue },
-  POST: { color: Color.Green },
-  PUT: { color: Color.Purple },
-  PATCH: { color: Color.Yellow },
-  DELETE: { color: Color.Red },
-  GRAPHQL: { color: Color.Orange },
+  GET: { color: Color.Blue, bodyAllowed: false },
+  POST: { color: Color.Green, bodyAllowed: true },
+  PUT: { color: Color.Purple, bodyAllowed: true },
+  PATCH: { color: Color.Yellow, bodyAllowed: true },
+  DELETE: { color: Color.Red, bodyAllowed: false },
+  GRAPHQL: { color: Color.Orange, bodyAllowed: true },
 } as const;
+
+export const SORT_OPTIONS = {
+  MANUAL: "manual",
+  NAME_ASC: "name-asc",
+  NAME_DESC: "name-desc",
+  METHOD: "method",
+  URL: "url",
+} as const;
+
+export type SortOption = (typeof SORT_OPTIONS)[keyof typeof SORT_OPTIONS];

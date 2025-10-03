@@ -141,7 +141,6 @@ export async function deleteVariable(environmentId: string, key: string) {
 export function saveVariableToActiveEnvironment(key: string, value: string) {
   const activeId = $currentEnvironmentId.get();
   if (!activeId) {
-    console.warn("No active environment set, cannot save variable.");
     return;
   }
 
