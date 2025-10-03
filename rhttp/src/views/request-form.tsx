@@ -1,5 +1,5 @@
 import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
-import { useReducer, useState } from "react";
+import { useMemo, useReducer, useState } from "react";
 import { NewRequest, Request, Method } from "~/types";
 import { $collections, $currentCollectionId, createRequest, updateRequest } from "~/store";
 import { COMMON_HEADER_KEYS, METHODS } from "~/constants";
@@ -72,7 +72,7 @@ function requestFormReducer(state: Request, action: FormAction): Request {
 }
 
 export function RequestForm({ collectionId, request: initialRequest }: RequestFormProps) {
-  const { push } = useNavigation();
+  const { push, pop } = useNavigation();
   const { execute: run, isLoading: isRunning } = useRunRequest();
   const { value: collections } = useAtom($collections);
   const { value: currentCollectionId } = useAtom($currentCollectionId);
@@ -110,6 +110,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
 
   async function handleSave() {
     setIsSaving(true);
+
     try {
       if (initialRequest.id) {
         await updateRequest(collectionId, dirtyRequest.id, dirtyRequest);
@@ -117,6 +118,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
       } else {
         await createRequest(collectionId, dirtyRequest as NewRequest);
         showToast({ title: "Request Created" });
+        pop(); // ✨ Close the form after creating
       }
     } catch (error) {
       // This block runs if Zod's .parse() throws an error.

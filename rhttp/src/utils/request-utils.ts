@@ -94,7 +94,9 @@ async function processResponse(request: NewRequest, response: AxiosResponse) {
       }
 
       if (typeof extractedValue === "string" || typeof extractedValue === "number") {
-        saveVariableToActiveEnvironment(action.variableKey, String(extractedValue));
+        if (action.storage === "ENVIRONMENT") {
+          saveVariableToActiveEnvironment(action.variableKey, String(extractedValue));
+        }
       }
     }
   }
