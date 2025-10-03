@@ -128,17 +128,25 @@ function useStoresReady(atoms: PersistentAtom<any>[]) {
 
 async function initializeApp() {
   // Use Promise.allSettled to wait for all promises, even if some fail.
-  const results = await Promise.allSettled([$collections.ready, $environments.ready, $cookies.ready, $history.ready]);
+  const stores = [
+    { atom: $collections, name: "Collections" },
+    { atom: $environments, name: "Environments" },
+    { atom: $cookies, name: "Cookies" },
+    { atom: $history, name: "History" },
+  ];
+
+  const results = await Promise.allSettled(stores.map((s) => s.atom.ready));
 
   // Check if any of the hydration promises were rejected.
-  const failedStores = results.filter((result) => result.status === "rejected");
+  const failedStores = results
+    .map((result, index) => ({ result, store: stores[index].name }))
+    .filter(({ result }) => result.status === "rejected");
   if (failedStores.length > 0) {
-    // If so, log the details and show a single toast to the user.
-    failedStores.forEach((failure) => console.error((failure as PromiseRejectedResult).reason));
+    const storeList = failedStores.map(({ store }) => store).join(", ");
     await showToast({
       style: Toast.Style.Failure,
       title: "Failed to Load Some Data",
-      message: "A data file may have been corrupted and has been reset.",
+      message: `Failed stores: ${storeList}`,
     });
   }
 
