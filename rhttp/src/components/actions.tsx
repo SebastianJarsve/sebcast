@@ -2,6 +2,7 @@ import {
   Action,
   ActionPanel,
   Clipboard,
+  Color,
   getPreferenceValues,
   Icon,
   Keyboard,
@@ -14,8 +15,8 @@ import { $collections, $currentCollectionId, createCollection, updateCollection 
 import { $currentEnvironmentId, $environments } from "../store/environments";
 import { ManageVariablesList } from "../views/manage-variables-list";
 import { HistoryView } from "../views/history-list-view";
-import { $isHistoryEnabled } from "../store/settings";
-import { newCollectionSchema } from "../types";
+import { $collectionSortPreferences, $isHistoryEnabled } from "../store/settings";
+import { type Collection, newCollectionSchema, type Request } from "~/types";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { parseCurlToRequest } from "~/utils/curl-to-request";
 import { RequestForm } from "~/views/request-form";
@@ -26,6 +27,7 @@ import fs from "fs/promises";
 import os from "os";
 import { randomUUID } from "crypto";
 import { backupAllData } from "~/utils/backup";
+import { SORT_OPTIONS, SortOption } from "~/constants";
 
 async function handleSelectEnvironment(envId: string) {
   const currentCollectionId = $currentCollectionId.get();
@@ -48,7 +50,8 @@ export function SelectEnvironmentMenu() {
       {allEnvironments.map((env) => (
         <Action
           key={env.id}
-          title={(currentEnvironment?.id === env.id ? `✅ ` : "") + env.name}
+          icon={currentEnvironment?.id === env.id ? { source: Icon.Checkmark, tintColor: Color.Green } : Icon.Dot}
+          title={env.name}
           onAction={() => {
             handleSelectEnvironment(env.id);
           }}
@@ -237,6 +240,51 @@ export function OpenInEditorAction({
         await open(tempPath, preferredEditor || undefined);
       }}
     />
+  );
+}
+
+export function SortRequestsMenu({
+  currentCollection,
+  onSort,
+}: {
+  currentCollection: Collection;
+  onSort: (sortKey: SortOption) => void;
+}) {
+  const { value: sortPreferences } = useAtom($collectionSortPreferences);
+  const currentSort = sortPreferences[currentCollection.id] ?? SORT_OPTIONS.MANUAL;
+
+  return (
+    <ActionPanel.Submenu
+      title="Sort Requests"
+      icon={Icon.ArrowUpCircle}
+      shortcut={{ modifiers: ["cmd", "shift"], key: "s" }}
+    >
+      <Action
+        title="By Name (A-Z)"
+        icon={currentSort === SORT_OPTIONS.NAME_ASC ? { source: Icon.Checkmark, tintColor: Color.Green } : Icon.Dot}
+        onAction={() => onSort(SORT_OPTIONS.NAME_ASC)}
+      />
+      <Action
+        title="By Name (Z-A)"
+        icon={currentSort === SORT_OPTIONS.NAME_DESC ? { source: Icon.Checkmark, tintColor: Color.Green } : Icon.Dot}
+        onAction={() => onSort(SORT_OPTIONS.NAME_DESC)}
+      />
+      <Action
+        title="By Method"
+        icon={currentSort === SORT_OPTIONS.METHOD ? { source: Icon.Checkmark, tintColor: Color.Green } : Icon.Dot}
+        onAction={() => onSort(SORT_OPTIONS.METHOD)}
+      />
+      <Action
+        title="By URL"
+        icon={currentSort === SORT_OPTIONS.URL ? { source: Icon.Checkmark, tintColor: Color.Green } : Icon.Dot}
+        onAction={() => onSort(SORT_OPTIONS.URL)}
+      />
+      <Action
+        title="Original Order"
+        icon={currentSort === SORT_OPTIONS.MANUAL ? { source: Icon.Checkmark, tintColor: Color.Green } : Icon.Dot}
+        onAction={() => onSort(SORT_OPTIONS.MANUAL)}
+      />
+    </ActionPanel.Submenu>
   );
 }
 

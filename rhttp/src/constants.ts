@@ -46,3 +46,13 @@ export const METHODS = {
   DELETE: { color: Color.Red, bodyAllowed: false },
   GRAPHQL: { color: Color.Orange, bodyAllowed: true },
 } as const;
+
+export const SORT_OPTIONS = {
+  MANUAL: "manual",
+  NAME_ASC: "name-asc",
+  NAME_DESC: "name-desc",
+  METHOD: "method",
+  URL: "url",
+} as const;
+
+export type SortOption = (typeof SORT_OPTIONS)[keyof typeof SORT_OPTIONS];

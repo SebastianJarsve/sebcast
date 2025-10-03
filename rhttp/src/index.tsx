@@ -11,15 +11,19 @@ import { CollectionForm } from "~/views/collection-form";
 import { RequestForm } from "~/views/request-form";
 import { Collection, Request } from "~/types";
 import { $currentEnvironmentId, $environments, initializeDefaultEnvironment } from "~/store/environments";
-import { CollectionActions, GlobalActions, NewRequestFromCurlAction } from "~/components/actions";
+import { CollectionActions, GlobalActions, NewRequestFromCurlAction, SortRequestsMenu } from "~/components/actions";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
-import { DEFAULT_COLLECTION_NAME } from "~/constants";
+import { DEFAULT_COLLECTION_NAME, METHODS, SORT_OPTIONS } from "~/constants";
 import { generateCurlCommand } from "./utils/curl-to-request";
 import { $cookies } from "./store/cookies";
 import { $history } from "./store/history";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PersistentAtom } from "@sebastianjarsve/persistent-atom/.";
 import { useRunRequest } from "./hooks/use-run-request";
+import { resolveVariables } from "./utils";
+import { substitutePlaceholders } from "./utils/environment-utils";
+import { ZodIssueCode } from "zod";
+import { $collectionSortPreferences } from "./store/settings";
 
 /**
  * CommonActions contains view-specific actions that need to be available
@@ -30,7 +34,7 @@ import { useRunRequest } from "./hooks/use-run-request";
  *
  * For truly global actions available everywhere, see GlobalActions in ~/components/actions.tsx
  */
-function CommonActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
+function CommonActions({ currentCollection }: { currentCollection: Collection | null }) {
   return (
     <>
       {currentCollection && (
@@ -43,6 +47,19 @@ function CommonActions({ currentCollection: currentCollection }: { currentCollec
         />
       )}
       <NewRequestFromCurlAction />
+      {currentCollection && (
+        <SortRequestsMenu
+          currentCollection={currentCollection}
+          onSort={async (sortKey) => {
+            const prefs = $collectionSortPreferences.get();
+            $collectionSortPreferences.set({
+              ...prefs,
+              [currentCollection.id]: sortKey,
+            });
+            await showToast({ title: "Requests Sorted" });
+          }}
+        />
+      )}
 
       <CollectionActions>
         {currentCollection && currentCollection.title !== DEFAULT_COLLECTION_NAME && (
@@ -167,11 +184,21 @@ interface RequestListItemProps {
 
 function RequestListItem({ request, currentCollection, collections }: RequestListItemProps) {
   const { execute: run } = useRunRequest();
+  const variables = resolveVariables();
 
   return (
     <List.Item
       key={request.id}
-      title={request.title ?? request.url}
+      title={substitutePlaceholders(request.title, variables) ?? request.url}
+      subtitle={request.title ? substitutePlaceholders(request.url, variables) : undefined}
+      accessories={[
+        {
+          tag: {
+            value: request.method,
+            color: METHODS[request.method]?.color,
+          },
+        },
+      ]}
       actions={
         <ActionPanel>
           <Action.Push
@@ -254,6 +281,31 @@ export default function RequestList() {
   const { value: currentEnvironmentId } = useAtom($currentEnvironmentId);
   const { value: environments } = useAtom($environments);
   const currentEnvironment = environments.find((e) => e.id === currentEnvironmentId);
+
+  const { value: sortPreferences } = useAtom($collectionSortPreferences);
+  const sortBy = currentCollection ? sortPreferences[currentCollection.id] : undefined;
+
+  const displayedRequests = useMemo(() => {
+    if (!currentCollection?.requests) return [];
+
+    const requests = [...currentCollection.requests];
+
+    switch (sortBy) {
+      case SORT_OPTIONS.NAME_ASC:
+        return requests.sort((a, b) => (a.title || a.url).localeCompare(b.title || b.url));
+      case SORT_OPTIONS.NAME_DESC:
+        return requests.sort((a, b) => (b.title || b.url).localeCompare(a.title || a.url));
+      case SORT_OPTIONS.METHOD:
+        const methodOrder = ["GET", "POST", "PUT", "PATCH", "DELETE", "GRAPHQL"];
+        return requests.sort((a, b) => methodOrder.indexOf(a.method) - methodOrder.indexOf(b.method));
+      case SORT_OPTIONS.URL:
+        return requests.sort((a, b) => a.url.localeCompare(b.url));
+      case SORT_OPTIONS.MANUAL:
+      default:
+        return requests; // Original order
+    }
+  }, [currentCollection, sortBy]);
+
   return (
     <List
       isLoading={!isReady || isLoading}
@@ -267,16 +319,17 @@ export default function RequestList() {
         </ActionPanel>
       }
     >
-      {currentCollection?.requests?.map((request) => {
-        return (
-          <RequestListItem
-            key={request.id}
-            request={request}
-            currentCollection={currentCollection}
-            collections={collections}
-          />
-        );
-      })}
+      {currentCollection &&
+        displayedRequests?.map((request) => {
+          return (
+            <RequestListItem
+              key={request.id}
+              request={request}
+              currentCollection={currentCollection}
+              collections={collections}
+            />
+          );
+        })}
     </List>
   );
 }
