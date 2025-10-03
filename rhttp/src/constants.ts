@@ -39,10 +39,10 @@ export const COMMON_HEADER_KEYS = [
  * This centralizes the configuration for each method.
  */
 export const METHODS = {
-  GET: { color: Color.Blue },
-  POST: { color: Color.Green },
-  PUT: { color: Color.Purple },
-  PATCH: { color: Color.Yellow },
-  DELETE: { color: Color.Red },
-  GRAPHQL: { color: Color.Orange },
+  GET: { color: Color.Blue, bodyAllowed: false },
+  POST: { color: Color.Green, bodyAllowed: true },
+  PUT: { color: Color.Purple, bodyAllowed: true },
+  PATCH: { color: Color.Yellow, bodyAllowed: true },
+  DELETE: { color: Color.Red, bodyAllowed: false },
+  GRAPHQL: { color: Color.Orange, bodyAllowed: true },
 } as const;

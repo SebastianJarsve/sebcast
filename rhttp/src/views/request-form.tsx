@@ -181,8 +181,8 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
       }
     >
       <Form.Description
-        title={`Collection: ${currentCollection?.title ?? ""}`}
-        text={`Environment: ${currentEnvironment?.name ?? ""}`}
+        title={`Collection: ${currentCollection?.title ?? "Unknown"}`}
+        text={`Environment: ${currentEnvironment?.name ?? "None"}`}
       />
       <Form.Dropdown
         id="method"
@@ -232,7 +232,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         </Form.Dropdown>
       )}
       {/* Conditional fields for Body, Params, etc. */}
-      {dirtyRequest.method && ["POST", "PUT", "PATCH"].includes(dirtyRequest.method) && (
+      {METHODS[dirtyRequest.method].bodyAllowed && (
         <Form.TextArea
           id="body"
           title="Body"
