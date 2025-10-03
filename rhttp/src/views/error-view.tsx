@@ -10,7 +10,6 @@ export function ErrorDetail({ error }: ErrorDetailProps) {
   console.error(error);
   // Format the Zod issues into a Markdown list
   const markdown = `# Validation Error 🚨
-
 We found some issues with the data you entered:
 
 \`\`\`json

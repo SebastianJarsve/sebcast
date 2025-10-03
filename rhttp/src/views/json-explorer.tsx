@@ -141,36 +141,6 @@ export function JSONExplorer({
           }
         />
       ))}
-      {/*
-      {pages > 1 && page > 0 && (
-        <List.Section title={`Page ${page + 1} of ${pages}`}>
-          <List.Item
-            id="prev-page"
-            title="... Previous Page"
-            icon={Icon.ArrowUp}
-            actions={
-              <ActionPanel>
-                <Action title="Go to Previous Page" onAction={onPrev} />
-              </ActionPanel>
-            }
-          />
-        </List.Section>
-      )}
-      {pages > 1 && page < pages - 1 && (
-        <List.Section title={`Page ${page + 1} of ${pages}`}>
-          <List.Item
-            id="next-page"
-            title="Next Page ..."
-            icon={Icon.ArrowDown}
-            actions={
-              <ActionPanel>
-                <Action title="Go to Next Page" onAction={onNext} />
-              </ActionPanel>
-            }
-          />
-        </List.Section>
-      )}
-      */}
     </List>
   );
 }

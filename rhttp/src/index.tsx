@@ -22,7 +22,6 @@ import { PersistentAtom } from "@sebastianjarsve/persistent-atom/.";
 import { useRunRequest } from "./hooks/use-run-request";
 import { resolveVariables } from "./utils";
 import { substitutePlaceholders } from "./utils/environment-utils";
-import { ZodIssueCode } from "zod";
 import { $collectionSortPreferences } from "./store/settings";
 
 /**

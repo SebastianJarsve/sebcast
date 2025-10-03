@@ -24,6 +24,7 @@ import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { useMemo } from "react";
 import { RequestForm } from "./request-form";
 import { $environments } from "~/store/environments";
+import { resolveVariables, substitutePlaceholders } from "~/utils/environment-utils";
 
 // Helper function to get a color for the status code accessory
 function getStatusAccessory(status: number): List.Item.Accessory {
@@ -117,7 +118,9 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
           return (
             <List.Item
               key={entry.id}
-              title={entry.requestSnapshot.title || entry.requestSnapshot.url}
+              title={
+                substitutePlaceholders(entry.requestSnapshot.title, resolveVariables()) || entry.requestSnapshot.url
+              }
               subtitle={subtitle}
               accessories={[
                 getMethodAccessory(entry.requestSnapshot.method),

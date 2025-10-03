@@ -55,7 +55,7 @@ export function KeyValueEditor({ title, pairs, onPairsChange, commonKeys, onActi
                   <Form.Dropdown.Item key={key} value={key} title={key} />
                 ))}
 
-                {searchText && <Form.Dropdown.Item key={searchText} value={searchText} title={`Add" ${searchText}"`} />}
+                {searchText && <Form.Dropdown.Item key={searchText} value={searchText} title={`Add "${searchText}"`} />}
               </Form.Dropdown>
             ) : (
               // Otherwise, render a simple TextField
