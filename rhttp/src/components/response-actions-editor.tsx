@@ -1,5 +1,4 @@
-// src/components/ResponseActionsEditor.tsx
-import { Form } from "@raycast/api";
+import { Color, Form, Icon } from "@raycast/api";
 import { ResponseAction } from "../types";
 import { Fragment } from "react/jsx-runtime";
 
@@ -47,6 +46,25 @@ export function ResponseActionsEditor({ actions, onActionsChange, onActiveIndexC
             onFocus={() => onActiveIndexChange(index)}
             onChange={(newValue) => handleActionChange(index, "variableKey", newValue)}
           />
+          <Form.Dropdown
+            id={`action-storage-${index}`}
+            title="Storage"
+            value={action.storage ?? "TEMPORARY"}
+            info="Temporary: Only available during this request chain. Environment: Saved permanently."
+            onFocus={() => onActiveIndexChange(index)}
+            onChange={(newValue) => handleActionChange(index, "storage", newValue)}
+          >
+            <Form.Dropdown.Item
+              value="TEMPORARY"
+              title="Temporary (request chain only)"
+              icon={{ source: Icon.Clock, tintColor: Color.Orange }}
+            />
+            <Form.Dropdown.Item
+              value="ENVIRONMENT"
+              title="Save to Environment"
+              icon={{ source: Icon.Key, tintColor: Color.Green }}
+            />
+          </Form.Dropdown>
         </Fragment>
       ))}
     </>

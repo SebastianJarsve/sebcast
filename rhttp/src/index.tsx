@@ -20,9 +20,9 @@ import { $history } from "./store/history";
 import { useEffect, useMemo, useState } from "react";
 import { PersistentAtom } from "@sebastianjarsve/persistent-atom/.";
 import { useRunRequest } from "./hooks/use-run-request";
-import { resolveVariables } from "./utils";
 import { substitutePlaceholders } from "./utils/environment-utils";
 import { $collectionSortPreferences } from "./store/settings";
+import { useVariables } from "./hooks/use-variables";
 
 /**
  * CommonActions contains view-specific actions that need to be available
@@ -183,7 +183,8 @@ interface RequestListItemProps {
 
 function RequestListItem({ request, currentCollection, collections }: RequestListItemProps) {
   const { execute: run } = useRunRequest();
-  const variables = resolveVariables();
+
+  const variables = useVariables();
 
   return (
     <List.Item
@@ -305,6 +306,9 @@ export default function RequestList() {
     }
   }, [currentCollection, sortBy]);
 
+  if (!isReady) {
+    return <List isLoading={true} />;
+  }
   return (
     <List
       isLoading={!isReady || isLoading}

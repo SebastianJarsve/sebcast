@@ -8,6 +8,10 @@ export function resolveVariables(): Record<string, string> {
   const allEnvironments = $environments.get();
   const activeId = $currentEnvironmentId.get();
 
+  if (!allEnvironments || allEnvironments.length === 0) {
+    return {};
+  }
+
   const globalEnv = allEnvironments.find((e) => e.name === "Globals");
   const activeEnv = allEnvironments.find((e) => e.id === activeId);
 

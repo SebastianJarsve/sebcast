@@ -2,8 +2,9 @@ import { showToast, Toast, useNavigation } from "@raycast/api";
 import axios from "axios";
 import { useState } from "react";
 import z from "zod";
+import { saveVariableToActiveEnvironment } from "~/store/environments";
 import { requestSchema, type Collection, type Request } from "~/types";
-import { runRequest } from "~/utils";
+import { getValueByPath, runRequest } from "~/utils";
 import { ErrorDetail } from "~/views/error-view";
 import { ResponseView } from "~/views/response";
 
@@ -21,11 +22,56 @@ export function useRunRequest() {
     setIsLoading(true);
     const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
     try {
-      // 2. Call our utility function
       if (!collection) return;
+
+      // ✨ Temporary variable context for this request chain
+      const temporaryVariables: Record<string, string> = {};
+
+      // Run pre-request actions first
+      if (request.preRequestActions && request.preRequestActions.length > 0) {
+        const enabledPreRequests = request.preRequestActions.filter((a) => a.enabled);
+
+        for (const preRequestAction of enabledPreRequests) {
+          const preRequest = collection.requests.find((r) => r.id === preRequestAction.requestId);
+
+          if (preRequest) {
+            toast.message = `Running pre-request: ${preRequest.title || preRequest.url}`;
+
+            // Run the pre-request with current temporary variables
+            const response = await runRequest(preRequest, collection, temporaryVariables);
+
+            // Extract variables from pre-request response
+            if (preRequest.responseActions) {
+              for (const action of preRequest.responseActions) {
+                let extractedValue: unknown;
+
+                if (action.source === "BODY_JSON") {
+                  extractedValue = getValueByPath(response.data, action.sourcePath);
+                } else if (action.source === "HEADER") {
+                  extractedValue = response.headers[action.sourcePath.toLowerCase()];
+                }
+
+                if (typeof extractedValue === "string" || typeof extractedValue === "number") {
+                  const valueStr = String(extractedValue);
+
+                  // ✨ Store based on storage preference
+                  if (action.storage === "ENVIRONMENT") {
+                    // Save to environment (persistent)
+                    saveVariableToActiveEnvironment(action.variableKey, valueStr);
+                  } else {
+                    // Store temporarily (only for this request chain)
+                    temporaryVariables[action.variableKey] = valueStr;
+                  }
+                }
+              }
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+        }
+      }
       const response = await runRequest(request, collection);
 
-      // 3. On success, hide the toast and push the response view
       toast.hide();
       if (!response) throw response;
       push(

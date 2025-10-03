@@ -12,6 +12,7 @@ import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { CopyVariableAction, GlobalActions } from "~/components/actions";
 import { $currentEnvironmentId, $environments } from "~/store/environments";
 import { useRunRequest } from "~/hooks/use-run-request";
+import { PreRequestActionsEditor } from "~/components/pre-request-action-editor";
 
 interface RequestFormProps {
   collectionId: string;
@@ -25,7 +26,9 @@ type FormAction =
   | { type: "ADD_HEADER" }
   | { type: "REMOVE_HEADER"; payload: { index: number } }
   | { type: "ADD_RESPONSE_ACTION" }
-  | { type: "REMOVE_RESPONSE_ACTION"; payload: { index: number } };
+  | { type: "REMOVE_RESPONSE_ACTION"; payload: { index: number } }
+  | { type: "ADD_PRE_REQUEST_ACTION" }
+  | { type: "REMOVE_PRE_REQUEST_ACTION"; payload: { index: number } };
 
 // This function contains ALL the logic for updating the state
 function requestFormReducer(state: Request, action: FormAction): Request {
@@ -45,13 +48,23 @@ function requestFormReducer(state: Request, action: FormAction): Request {
         ...state,
         responseActions: [
           ...(state.responseActions ?? []),
-          { id: randomUUID(), source: "BODY_JSON", sourcePath: "", variableKey: "" },
+          { id: randomUUID(), source: "BODY_JSON", sourcePath: "", variableKey: "", storage: "ENVIRONMENT" },
         ],
       };
     case "REMOVE_RESPONSE_ACTION":
       return {
         ...state,
         responseActions: state.responseActions?.filter((_, i) => i !== action.payload.index),
+      };
+    case "ADD_PRE_REQUEST_ACTION":
+      return {
+        ...state,
+        preRequestActions: [...(state.preRequestActions ?? []), { id: randomUUID(), requestId: "", enabled: true }],
+      };
+    case "REMOVE_PRE_REQUEST_ACTION":
+      return {
+        ...state,
+        preRequestActions: state.preRequestActions?.filter((_, i) => i !== action.payload.index),
       };
     default:
       return state;
@@ -82,10 +95,13 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
     params: initialRequest.params ?? "",
     query: initialRequest.query ?? "",
     responseActions: initialRequest.responseActions ?? [],
+    preRequestActions: initialRequest.preRequestActions ?? [],
   });
 
   const [activeHeaderIndex, setActiveHeaderIndex] = useState<number | null>(null);
   const [activeActionIndex, setActiveActionIndex] = useState<number | null>(null);
+  const [activePreRequestIndex, setActivePreRequestIndex] = useState<number | null>(null); // ← ADD THIS
+  const availableRequests = currentCollection?.requests.filter((r) => r.id !== dirtyRequest.id) ?? [];
 
   async function handleRun() {
     if (!currentCollection) return;
@@ -161,7 +177,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
               title="Add Response Action"
               icon={Icon.Plus}
               onAction={() => dispatch({ type: "ADD_RESPONSE_ACTION" })}
-              shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
+              shortcut={{ modifiers: ["opt"], key: "r" }}
             />
             {activeActionIndex !== null && (
               <Action
@@ -172,7 +188,26 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                   dispatch({ type: "REMOVE_RESPONSE_ACTION", payload: { index: activeActionIndex } });
                   showToast({ style: Toast.Style.Success, title: "Action Removed" });
                 }}
-                shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
+                shortcut={{ modifiers: ["ctrl"], key: "r" }}
+              />
+            )}
+            <Action
+              title="Add Pre-Request Action"
+              icon={Icon.Plus}
+              onAction={() => dispatch({ type: "ADD_PRE_REQUEST_ACTION" })}
+              shortcut={{ modifiers: ["opt"], key: "p" }}
+            />
+            {activePreRequestIndex !== null && (
+              <Action
+                title="Remove Pre-Request Action"
+                icon={Icon.Trash}
+                style={Action.Style.Destructive}
+                onAction={() => {
+                  dispatch({ type: "REMOVE_PRE_REQUEST_ACTION", payload: { index: activePreRequestIndex } });
+                  setActivePreRequestIndex(null);
+                  showToast({ style: Toast.Style.Success, title: "Pre-Request Action Removed" });
+                }}
+                shortcut={{ modifiers: ["ctrl"], key: "p" }}
               />
             )}
           </ActionPanel.Section>
@@ -276,6 +311,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
       {dirtyRequest.headers.length > 0 && (
         <>
           <Form.Separator />
+
           <KeyValueEditor
             onActiveIndexChange={setActiveHeaderIndex}
             title="Headers"
@@ -287,7 +323,15 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
       )}
 
       <Form.Separator />
-      <Form.Description text="Response Actions" />
+
+      <PreRequestActionsEditor
+        actions={dirtyRequest.preRequestActions ?? []}
+        availableRequests={availableRequests}
+        onActionsChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "preRequestActions", value } })}
+        onActiveIndexChange={setActivePreRequestIndex}
+      />
+
+      <Form.Separator />
 
       <ResponseActionsEditor
         actions={dirtyRequest.responseActions ?? []}
