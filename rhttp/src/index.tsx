@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Alert, confirmAlert, Icon, List, showToast, Toast, useNavigation } from "@raycast/api";
+import { Action, ActionPanel, Alert, confirmAlert, Icon, List, showToast, Toast } from "@raycast/api";
 import {
   $collections,
   $currentCollectionId,
@@ -9,12 +9,7 @@ import {
 } from "./store";
 import { CollectionForm } from "~/views/collection-form";
 import { RequestForm } from "~/views/request-form";
-import { Collection } from "~/types";
-import { runRequest } from "~/utils";
-import { ResponseView } from "~/views/response";
-import axios from "axios";
-import { ErrorDetail } from "~/views/error-view";
-import { z } from "zod";
+import { Collection, Request } from "~/types";
 import { $currentEnvironmentId, $environments, initializeDefaultEnvironment } from "~/store/environments";
 import { CollectionActions, GlobalActions, NewRequestFromCurlAction } from "~/components/actions";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
@@ -26,6 +21,15 @@ import { useEffect, useState } from "react";
 import { PersistentAtom } from "@sebastianjarsve/persistent-atom/.";
 import { useRunRequest } from "./hooks/use-run-request";
 
+/**
+ * CommonActions contains view-specific actions that need to be available
+ * in both the List's default ActionPanel and individual List.Item ActionPanels.
+ *
+ * This is necessary because Raycast's List.Item ActionPanel completely overrides
+ * the List's ActionPanel, so we need to explicitly include these in both places.
+ *
+ * For truly global actions available everywhere, see GlobalActions in ~/components/actions.tsx
+ */
 function CommonActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
   return (
     <>
@@ -99,7 +103,6 @@ export function CollectionDropdown() {
 
         // 3. Set the current collection ID to the new value.
         $currentCollectionId.set(newValue);
-        console.log("HELLO?", newValue);
       }}
     >
       <List.Dropdown.Section title="Collections">
@@ -156,6 +159,79 @@ async function initializeApp() {
   initializeDefaultEnvironment();
 }
 
+interface RequestListItemProps {
+  request: Request;
+  currentCollection: Collection;
+  collections: readonly Collection[];
+}
+
+function RequestListItem({ request, currentCollection, collections }: RequestListItemProps) {
+  const { execute: run } = useRunRequest();
+
+  return (
+    <List.Item
+      key={request.id}
+      title={request.title ?? request.url}
+      actions={
+        <ActionPanel>
+          <Action.Push
+            key={"edit-request"}
+            title="Open request"
+            icon={Icon.ChevronRight}
+            target={<RequestForm collectionId={currentCollection.id} request={request} />}
+            shortcut={{ modifiers: ["cmd"], key: "e" }}
+          />
+          <Action
+            title="Run request"
+            icon={Icon.Bolt}
+            shortcut={{ modifiers: ["cmd"], key: "o" }}
+            onAction={() => run(request, currentCollection)}
+          />
+          <Action.CopyToClipboard
+            title="Copy as cURL"
+            icon={Icon.Terminal}
+            content={generateCurlCommand(request, currentCollection)}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+          />
+          <CommonActions currentCollection={currentCollection} />
+          <ActionPanel.Submenu
+            title="Move request to another collection"
+            icon={Icon.Switch}
+            shortcut={{ modifiers: ["cmd"], key: "m" }}
+          >
+            {collections.map((c) => (
+              <Action
+                key={`col-${c.id}`}
+                title={`Move to "${c.title}"`}
+                onAction={() => moveRequest(request.id, currentCollection.id, c.id)}
+              />
+            ))}
+          </ActionPanel.Submenu>
+          <Action
+            title="Delete Request"
+            icon={Icon.Trash}
+            style={Action.Style.Destructive}
+            shortcut={{ modifiers: ["ctrl"], key: "x" }}
+            onAction={async () => {
+              if (
+                await confirmAlert({
+                  title: "Delete Request?",
+                  message: "Are you sure you want to delete this request? This cannot be undone.",
+                  primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
+                })
+              ) {
+                await deleteRequest(currentCollection.id, request.id);
+                await showToast({ style: Toast.Style.Success, title: "Request Deleted" });
+              }
+            }}
+          />
+          <GlobalActions />
+        </ActionPanel>
+      }
+    />
+  );
+}
+
 export default function RequestList() {
   useEffect(() => {
     initializeApp();
@@ -170,15 +246,14 @@ export default function RequestList() {
     $cookies,
   ]);
 
-  const { execute: run, isLoading } = useRunRequest();
+  const { isLoading } = useRunRequest();
 
   const { value: collections } = useAtom($collections);
-  const { value: curentCollectionId } = useAtom($currentCollectionId);
-  const currentCollection = collections.find((c) => c.id === curentCollectionId);
+  const { value: currentCollectionId } = useAtom($currentCollectionId);
+  const currentCollection = collections.find((c) => c.id === currentCollectionId);
   const { value: currentEnvironmentId } = useAtom($currentEnvironmentId);
   const { value: environments } = useAtom($environments);
   const currentEnvironment = environments.find((e) => e.id === currentEnvironmentId);
-  const { push } = useNavigation();
   return (
     <List
       isLoading={!isReady || isLoading}
@@ -192,72 +267,16 @@ export default function RequestList() {
         </ActionPanel>
       }
     >
-      {currentCollection &&
-        currentCollection.requests?.map((request) => {
-          return (
-            <List.Item
-              key={request.id}
-              title={request.title ?? request.url}
-              actions={
-                <ActionPanel>
-                  <Action.Push
-                    key={"edit-request"}
-                    title="Open request"
-                    icon={Icon.ChevronRight}
-                    target={<RequestForm collectionId={currentCollection.id} request={request} />}
-                    shortcut={{ modifiers: ["cmd"], key: "e" }}
-                  />
-                  <Action
-                    title="Run request"
-                    icon={Icon.Bolt}
-                    shortcut={{ modifiers: ["cmd"], key: "o" }}
-                    onAction={() => run(request, currentCollection)}
-                  />
-                  <Action.CopyToClipboard
-                    title="Copy as cURL"
-                    icon={Icon.Terminal}
-                    content={generateCurlCommand(request, currentCollection!)}
-                    shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
-                  />
-                  <CommonActions currentCollection={currentCollection} />
-                  <ActionPanel.Submenu
-                    title="Move request to another collection"
-                    icon={Icon.Switch}
-                    shortcut={{ modifiers: ["cmd"], key: "m" }}
-                  >
-                    {collections.map((c) => (
-                      <Action
-                        key={`col-${c.id}`}
-                        title={`Move to "${c.title}"`}
-                        onAction={() => moveRequest(request.id, currentCollection.id, c.id)}
-                      />
-                    ))}
-                  </ActionPanel.Submenu>
-                  <Action
-                    title="Delete Request"
-                    icon={Icon.Trash}
-                    style={Action.Style.Destructive}
-                    shortcut={{ modifiers: ["ctrl"], key: "x" }}
-                    onAction={async () => {
-                      if (
-                        await confirmAlert({
-                          title: "Delete Request?",
-                          message: "Are you sure you want to delete this request? This cannot be undone.",
-                          primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
-                        })
-                      ) {
-                        await deleteRequest(currentCollection!.id, request.id);
-                        await showToast({ style: Toast.Style.Success, title: "Request Deleted" });
-                      }
-                    }}
-                  />
-
-                  <GlobalActions />
-                </ActionPanel>
-              }
-            />
-          );
-        })}
+      {currentCollection?.requests?.map((request) => {
+        return (
+          <RequestListItem
+            key={request.id}
+            request={request}
+            currentCollection={currentCollection}
+            collections={collections}
+          />
+        );
+      })}
     </List>
   );
 }
