@@ -24,6 +24,7 @@ import { $cookies } from "./store/cookies";
 import { $history } from "./store/history";
 import { useEffect, useState } from "react";
 import { PersistentAtom } from "@sebastianjarsve/persistent-atom/.";
+import { useRunRequest } from "./hooks/use-run-request";
 
 function CommonActions({ currentCollection: currentCollection }: { currentCollection: Collection | null }) {
   return (
@@ -160,6 +161,9 @@ export default function RequestList() {
     $history,
     $cookies,
   ]);
+
+  const { execute: run, isLoading } = useRunRequest();
+
   const { value: collections } = useAtom($collections);
   const { value: curentCollectionId } = useAtom($currentCollectionId);
   const currentCollection = collections.find((c) => c.id === curentCollectionId);
@@ -169,7 +173,7 @@ export default function RequestList() {
   const { push } = useNavigation();
   return (
     <List
-      isLoading={!isReady}
+      isLoading={!isReady || isLoading}
       navigationTitle={`Environment = ${currentEnvironment?.name}`}
       searchBarPlaceholder="Search requests..."
       searchBarAccessory={<CollectionDropdown />}
@@ -199,64 +203,7 @@ export default function RequestList() {
                     title="Run request"
                     icon={Icon.Bolt}
                     shortcut={{ modifiers: ["cmd"], key: "o" }}
-                    onAction={async () => {
-                      // 1. Show a loading toast
-                      const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
-                      try {
-                        // 2. Call our utility function
-                        const response = await runRequest(request, currentCollection);
-
-                        // 3. On success, hide the toast and push the response view
-                        toast.hide();
-                        if (!response) throw "Response is undefined";
-                        push(
-                          <ResponseView
-                            sourceRequestId={request.id}
-                            requestSnapshot={request}
-                            response={{
-                              requestMethod: request.method,
-                              status: response.status,
-                              statusText: response.statusText,
-                              headers: response.headers as Record<string, string>,
-                              body: response.data,
-                            }}
-                          />,
-                        );
-                      } catch (error) {
-                        if (axios.isAxiosError(error) && error.response) {
-                          // This is an API error (e.g., 404, 500). Show the detailed view.
-                          toast.hide();
-                          push(
-                            <ResponseView
-                              sourceRequestId={request.id}
-                              requestSnapshot={request}
-                              response={{
-                                requestMethod: request.method,
-                                status: error.response.status,
-                                statusText: error.response.statusText,
-                                headers: error.response.headers as Record<string, string>,
-                                body: error.response.data,
-                              }}
-                            />,
-                          );
-                        } else if (error instanceof z.ZodError) {
-                          toast.hide();
-                          // This is a validation error from our schema -> Show the ErrorDetail view
-                          push(<ErrorDetail error={error} />);
-                        } else if (axios.isAxiosError(error) && error.code === "ENOTFOUND") {
-                          // This is a DNS/network error, which often means a VPN isn't connected.
-                          toast.style = Toast.Style.Failure;
-                          toast.title = "Host Not Found";
-                          toast.message = "Check your internet or VPN connection.";
-                        } else {
-                          // This is a network error (e.g., connection refused) or another issue.
-                          // For these, a toast is appropriate.
-                          toast.style = Toast.Style.Failure;
-                          toast.title = "Request Failed";
-                          toast.message = String(error);
-                        }
-                      }
-                    }}
+                    onAction={() => run(request, currentCollection)}
                   />
                   <Action.CopyToClipboard
                     title="Copy as cURL"
