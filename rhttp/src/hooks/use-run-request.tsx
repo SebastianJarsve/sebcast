@@ -2,7 +2,7 @@ import { showToast, Toast, useNavigation } from "@raycast/api";
 import axios from "axios";
 import { useState } from "react";
 import z from "zod";
-import type { Collection, Request } from "~/types";
+import { requestSchema, type Collection, type Request } from "~/types";
 import { runRequest } from "~/utils";
 import { ErrorDetail } from "~/views/error-view";
 import { ResponseView } from "~/views/response";
@@ -12,6 +12,12 @@ export function useRunRequest() {
   const [isLoading, setIsLoading] = useState(false);
 
   const execute = async (request: Request, collection: Collection) => {
+    // Validate before running request
+    const validationResult = requestSchema.safeParse(request);
+    if (!validationResult.success) {
+      push(<ErrorDetail error={validationResult.error} />);
+      return;
+    }
     setIsLoading(true);
     const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
     try {
