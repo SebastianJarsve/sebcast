@@ -121,6 +121,7 @@ export async function runRequest(
   request: NewRequest,
   collection: Collection,
   temporaryVariables?: Record<string, string>,
+  signal?: AbortSignal,
 ) {
   // 1. PREPARE VARIABLES
   const envVars = resolveVariables();
@@ -132,6 +133,11 @@ export async function runRequest(
   // 3. EXECUTE
   try {
     const config = buildAxiosConfig(request, preparedRequest);
+
+    if (signal) {
+      config.signal = signal;
+    }
+
     const response = await axios(config);
 
     // 4. PROCESS on success

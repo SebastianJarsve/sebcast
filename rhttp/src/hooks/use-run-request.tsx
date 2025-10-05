@@ -1,6 +1,6 @@
 import { showToast, Toast, useNavigation } from "@raycast/api";
 import axios from "axios";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import z from "zod";
 import { saveVariableToActiveEnvironment } from "~/store/environments";
 import { requestSchema, type Collection, type Request } from "~/types";
@@ -11,6 +11,19 @@ import { ResponseView } from "~/views/response";
 export function useRunRequest() {
   const { push } = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const cancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
+      showToast({
+        style: Toast.Style.Success,
+        title: "Request Cancelled",
+      });
+    }
+  };
 
   const execute = async (request: Request, collection: Collection) => {
     // Validate before running request
@@ -19,6 +32,14 @@ export function useRunRequest() {
       push(<ErrorDetail error={validationResult.error} />);
       return;
     }
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller
+    abortControllerRef.current = new AbortController();
+
     setIsLoading(true);
     const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
     try {
@@ -38,6 +59,9 @@ export function useRunRequest() {
         const enabledPreRequests = request.preRequestActions.filter((a) => a.enabled);
 
         for (const preRequestAction of enabledPreRequests) {
+          if (abortControllerRef.current?.signal.aborted) {
+            return;
+          }
           const preRequest = collection.requests.find((r) => r.id === preRequestAction.requestId);
 
           if (preRequest) {
@@ -45,7 +69,12 @@ export function useRunRequest() {
             toast.message = `Running pre-request: ${preRequest.title || preRequest.url}`;
 
             // Run the pre-request with current temporary variables
-            const response = await runRequest(preRequest, collection, temporaryVariables);
+            const response = await runRequest(
+              preRequest,
+              collection,
+              temporaryVariables,
+              abortControllerRef.current.signal,
+            );
 
             // Extract variables from pre-request response
             if (preRequest.responseActions) {
@@ -77,7 +106,12 @@ export function useRunRequest() {
           }
         }
       }
-      const response = await runRequest(request, collection, temporaryVariables);
+      // Check if cancelled before main request
+      if (abortControllerRef.current?.signal.aborted) {
+        return;
+      }
+
+      const response = await runRequest(request, collection, temporaryVariables, abortControllerRef.current.signal);
 
       toast.hide();
       if (!response) throw response;
@@ -129,7 +163,8 @@ export function useRunRequest() {
       }
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
-  return { execute, isLoading };
+  return { execute, isLoading, cancel };
 }

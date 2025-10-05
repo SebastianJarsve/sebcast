@@ -73,7 +73,7 @@ function requestFormReducer(state: Request, action: FormAction): Request {
 
 export function RequestForm({ collectionId, request: initialRequest }: RequestFormProps) {
   const { push, pop } = useNavigation();
-  const { execute: run, isLoading: isRunning } = useRunRequest();
+  const { execute: run, isLoading: isRunning, cancel } = useRunRequest();
   const { value: collections } = useAtom($collections);
   const { value: currentCollectionId } = useAtom($currentCollectionId);
   const { value: currentEnvironmentId } = useAtom($currentEnvironmentId);
@@ -143,7 +143,11 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
       navigationTitle={`Environment = ${currentEnvironment?.name}`}
       actions={
         <ActionPanel>
-          <Action title="Run Request" icon={Icon.Bolt} onAction={handleRun} />
+          {isRunning ? (
+            <Action title="Cancel Request" icon={Icon.XMarkCircle} onAction={cancel} style={Action.Style.Destructive} />
+          ) : (
+            <Action title="Run Request" icon={Icon.Bolt} onAction={handleRun} />
+          )}
           <Action
             title="Save Request"
             icon={Icon.HardDrive}

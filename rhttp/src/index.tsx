@@ -182,7 +182,7 @@ interface RequestListItemProps {
 }
 
 function RequestListItem({ request, currentCollection, collections }: RequestListItemProps) {
-  const { execute: run } = useRunRequest();
+  const { execute: run, cancel, isLoading } = useRunRequest();
 
   const variables = useVariables();
 
@@ -208,12 +208,22 @@ function RequestListItem({ request, currentCollection, collections }: RequestLis
             target={<RequestForm collectionId={currentCollection.id} request={request} />}
             shortcut={{ modifiers: ["cmd"], key: "e" }}
           />
-          <Action
-            title="Run request"
-            icon={Icon.Bolt}
-            shortcut={{ modifiers: ["cmd"], key: "o" }}
-            onAction={() => run(request, currentCollection)}
-          />
+          {isLoading ? (
+            <Action
+              title="Cancel Request"
+              icon={Icon.XMarkCircle}
+              onAction={cancel}
+              style={Action.Style.Destructive}
+              shortcut={{ modifiers: ["cmd"], key: "o" }}
+            />
+          ) : (
+            <Action
+              title="Run request"
+              icon={Icon.Bolt}
+              shortcut={{ modifiers: ["cmd"], key: "o" }}
+              onAction={() => run(request, currentCollection)}
+            />
+          )}
           <Action.CopyToClipboard
             title="Copy as cURL"
             icon={Icon.Terminal}
@@ -273,8 +283,6 @@ export default function RequestList() {
     $cookies,
   ]);
 
-  const { isLoading } = useRunRequest();
-
   const { value: collections } = useAtom($collections);
   const { value: currentCollectionId } = useAtom($currentCollectionId);
   const currentCollection = collections.find((c) => c.id === currentCollectionId);
@@ -283,6 +291,7 @@ export default function RequestList() {
   const currentEnvironment = environments.find((e) => e.id === currentEnvironmentId);
 
   const { value: sortPreferences } = useAtom($collectionSortPreferences);
+  const { isLoading } = useRunRequest();
   const sortBy = currentCollection ? sortPreferences[currentCollection.id] : undefined;
 
   const displayedRequests = useMemo(() => {
