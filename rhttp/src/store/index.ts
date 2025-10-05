@@ -13,7 +13,6 @@ export const $collections = persistentAtom<Collection[]>([], {
   key: "collections",
   serialize: JSON.stringify,
   deserialize: (raw) => {
-    console.log(z.array(collectionSchema).parse(JSON.parse(raw)));
     return z.array(collectionSchema).parse(JSON.parse(raw));
   },
 });

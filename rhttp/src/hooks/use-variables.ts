@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { $environments, $currentEnvironmentId } from "~/store/environments";
+import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 
 /**
  * Hook to get the resolved variables from the current environment.
@@ -12,7 +13,7 @@ export function useVariables(): Record<string, string> {
   const { value: currentEnvironmentId } = useAtom($currentEnvironmentId);
 
   return useMemo(() => {
-    const globalEnv = environments.find((e) => e.name === "Globals");
+    const globalEnv = environments.find((e) => e.name === GLOBAL_ENVIRONMENT_NAME);
     const activeEnv = environments.find((e) => e.id === currentEnvironmentId);
 
     const resolved: Record<string, string> = {};

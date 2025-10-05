@@ -3,6 +3,7 @@ import { Color } from "@raycast/api";
 export const MAX_BODY_LENGTH = 5000;
 
 export const DEFAULT_COLLECTION_NAME = "default";
+export const GLOBAL_ENVIRONMENT_NAME = "Globals";
 
 export const COMMON_HEADER_KEYS = [
   "A-IM",

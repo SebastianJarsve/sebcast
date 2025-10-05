@@ -4,6 +4,7 @@ import { EnvironmentForm } from "./environment-form";
 import { VariableForm } from "./variable-form";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { GlobalActions } from "~/components/actions";
+import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 
 function EnvironmentDropdown() {
   const { value: environments } = useAtom($environments);
@@ -53,7 +54,7 @@ function CommonActions() {
           shortcut={{ modifiers: ["cmd", "shift"], key: "n" }}
           icon={Icon.PlusTopRightSquare}
         />
-        {currentEnvironment && currentEnvironment.name !== "Globals" && (
+        {currentEnvironment && currentEnvironment.name !== GLOBAL_ENVIRONMENT_NAME && (
           <Action
             title="Delete Environment"
             style={Action.Style.Destructive}

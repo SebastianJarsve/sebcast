@@ -9,7 +9,7 @@ import {
 } from "./store";
 import { CollectionForm } from "~/views/collection-form";
 import { RequestForm } from "~/views/request-form";
-import { Collection, Request } from "~/types";
+import { Collection, Method, Request } from "~/types";
 import { $currentEnvironmentId, $environments, initializeDefaultEnvironment } from "~/store/environments";
 import { CollectionActions, GlobalActions, NewRequestFromCurlAction, SortRequestsMenu } from "~/components/actions";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
@@ -171,8 +171,8 @@ async function initializeApp() {
 
   // Now, proceed with initialization. This will create defaults for any
   // stores that failed to load and are currently empty.
-  initializeDefaultCollection();
-  initializeDefaultEnvironment();
+  await initializeDefaultCollection();
+  await initializeDefaultEnvironment();
 }
 
 interface RequestListItemProps {
@@ -296,7 +296,7 @@ export default function RequestList() {
       case SORT_OPTIONS.NAME_DESC:
         return requests.sort((a, b) => (b.title || b.url).localeCompare(a.title || a.url));
       case SORT_OPTIONS.METHOD:
-        const methodOrder = ["GET", "POST", "PUT", "PATCH", "DELETE", "GRAPHQL"];
+        const methodOrder: Method[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "GRAPHQL"];
         return requests.sort((a, b) => methodOrder.indexOf(a.method) - methodOrder.indexOf(b.method));
       case SORT_OPTIONS.URL:
         return requests.sort((a, b) => a.url.localeCompare(b.url));

@@ -7,6 +7,7 @@ import { handleSetCookieHeaders, prepareCookieHeader } from "./cookie-utils";
 import { $isHistoryEnabled } from "~/store/settings";
 import { addHistoryEntry } from "~/store/history";
 import { saveVariableToActiveEnvironment } from "~/store/environments";
+import { getPreferenceValues } from "@raycast/api";
 
 export const headersArrayToObject = (headers: { key: string; value: string }[]) => {
   return Object.fromEntries(headers.map(({ key, value }) => [key, value]));
@@ -46,13 +47,15 @@ export function prepareRequest(request: NewRequest, collection: Collection, vari
 function buildAxiosConfig(request: NewRequest, preparedData: ReturnType<typeof prepareRequest>): AxiosRequestConfig {
   const { finalUrl, finalBody, finalHeaders, finalParams, finalGqlQuery, finalGqlVariables } = preparedData;
 
+  const { disableSSLVerification } = getPreferenceValues<{ disableSSLVerification: boolean }>();
+
   const config: AxiosRequestConfig = {
     url: finalUrl,
     headers: finalHeaders,
     method: request.method === "GRAPHQL" ? "POST" : request.method,
     params: finalParams ? JSON.parse(finalParams) : undefined,
     data: finalBody ? JSON.parse(finalBody) : undefined,
-    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+    httpsAgent: disableSSLVerification ? new https.Agent({ rejectUnauthorized: false }) : undefined,
   };
 
   if (request.bodyType === "FORM_DATA" && finalBody) {

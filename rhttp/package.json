@@ -23,6 +23,15 @@
       "type": "textfield",
       "required": false,
       "default": ""
+    },
+    {
+      "name": "disableSSLVerification",
+      "title": "Disable SSL Verification",
+      "description": "This is useful when working with local APIs.",
+      "label": "Disable SSL",
+      "type": "checkbox",
+      "required": false,
+      "default": false
     }
   ],
   "dependencies": {

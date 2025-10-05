@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { METHODS } from "./constants";
 
+const methodKeys = Object.keys(METHODS) as [keyof typeof METHODS, ...Array<keyof typeof METHODS>];
 /** Zod schema for validating that a string is one of the defined methods. */
-export const methodSchema = z.enum(Object.keys(METHODS) as [keyof typeof METHODS, ...(keyof typeof METHODS)[]]);
+export const methodSchema = z.enum(methodKeys);
 export type Method = z.infer<typeof methodSchema>;
 
 // --- GENERIC UTILITY TYPES ---

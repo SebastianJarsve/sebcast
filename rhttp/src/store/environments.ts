@@ -4,6 +4,7 @@ import { persistentAtom } from "@sebastianjarsve/persistent-atom";
 import { createLocalStorageAdapter } from "@sebastianjarsve/persistent-atom/adapters";
 import { Environment, environmentsSchema, Variable } from "../types";
 import { computed } from "nanostores";
+import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 
 export const $environments = persistentAtom<Environment[]>([], {
   storage: createLocalStorageAdapter(),
@@ -33,7 +34,7 @@ export const $currentEnvironmentId = persistentAtom<string | null>(null, {
 function createGlobalEnvironmentObject(): Environment {
   return {
     id: randomUUID(),
-    name: "Globals",
+    name: GLOBAL_ENVIRONMENT_NAME,
     variables: {},
   };
 }

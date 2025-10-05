@@ -22,7 +22,13 @@ export function useRunRequest() {
     setIsLoading(true);
     const toast = await showToast({ style: Toast.Style.Animated, title: "Running request..." });
     try {
-      if (!collection) return;
+      if (!collection) {
+        await showToast({
+          style: Toast.Style.Failure,
+          title: "No collection selected",
+        });
+        return;
+      }
 
       // ✨ Temporary variable context for this request chain
       const temporaryVariables: Record<string, string> = {};
@@ -66,12 +72,12 @@ export function useRunRequest() {
                 }
               }
             }
-
+            // Brief delay between pre-requests to allow UI updates and prevent server overload
             await new Promise((resolve) => setTimeout(resolve, 100));
           }
         }
       }
-      const response = await runRequest(request, collection);
+      const response = await runRequest(request, collection, temporaryVariables);
 
       toast.hide();
       if (!response) throw response;

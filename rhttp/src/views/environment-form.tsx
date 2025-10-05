@@ -1,6 +1,7 @@
 import { Action, ActionPanel, Form, showToast, Toast, useNavigation } from "@raycast/api";
 import { $environments, createEnvironment, updateEnvironment } from "../store/environments";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 
 interface EnvironmentFormProps {
   environmentId?: string;
@@ -31,7 +32,7 @@ export function EnvironmentForm({ environmentId }: EnvironmentFormProps) {
     // The rest of the function is the same
     try {
       if (environmentId) {
-        if (environmentToEdit?.name === "Globals") {
+        if (environmentToEdit?.name === GLOBAL_ENVIRONMENT_NAME) {
           showToast({ style: Toast.Style.Failure, title: "Cannot rename the Globals environment" });
           return;
         }
