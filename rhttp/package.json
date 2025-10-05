@@ -27,8 +27,8 @@
     {
       "name": "disableSSLVerification",
       "title": "Disable SSL Verification",
-      "description": "This is useful when working with local APIs.",
-      "label": "Disable SSL",
+      "description": "⚠️ Disable SSL certificate verification. Only use for local development or trusted networks. This makes requests vulnerable to man-in-the-middle attacks.",
+      "label": "Disable SSL verification for all requests",
       "type": "checkbox",
       "required": false,
       "default": false

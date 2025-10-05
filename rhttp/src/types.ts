@@ -157,6 +157,7 @@ export const environmentsSchema = z.array(environmentSchema);
 // A schema for the response data we want to save
 export const responseDataSchema = z.object({
   requestMethod: methodSchema,
+  requestUrl: z.string(),
   status: z.number(),
   statusText: z.string(),
   headers: z.record(z.string(), z.string()),

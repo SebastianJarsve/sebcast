@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import z from "zod";
 import { saveVariableToActiveEnvironment } from "~/store/environments";
 import { requestSchema, type Collection, type Request } from "~/types";
-import { getValueByPath, runRequest } from "~/utils";
+import { getValueByPath, prepareRequest, runRequest } from "~/utils";
 import { ErrorDetail } from "~/views/error-view";
 import { ResponseView } from "~/views/response";
 
@@ -121,6 +121,7 @@ export function useRunRequest() {
           requestSnapshot={request}
           response={{
             requestMethod: request.method,
+            requestUrl: response.config.url ?? "",
             status: response.status,
             statusText: response.statusText,
             headers: response.headers as Record<string, string>,

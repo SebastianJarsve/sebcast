@@ -37,6 +37,7 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
   // Create the metadata component once, as it's used in both views.
   const metadata = (
     <Detail.Metadata>
+      <Detail.Metadata.Link title="URL" text={response.requestUrl} target={response.requestUrl} />
       <Detail.Metadata.TagList title="Method">
         <Detail.Metadata.TagList.Item text={response.requestMethod} color={getMethodColor()} />
       </Detail.Metadata.TagList>

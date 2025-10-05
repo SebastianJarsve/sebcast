@@ -1,4 +1,3 @@
-// src/store/history.ts
 import { randomUUID } from "crypto";
 import { persistentAtom } from "@sebastianjarsve/persistent-atom";
 import { HistoryEntry, historySchema, ResponseData, NewRequest } from "../types";
