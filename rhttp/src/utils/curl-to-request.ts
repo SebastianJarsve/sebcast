@@ -1,6 +1,6 @@
 // src/utils.ts
 import { NewRequest, Headers, Collection } from "~/types";
-import { prepareRequest } from ".";
+import { prepareRequest, resolveVariables } from ".";
 
 /**
  * Parses a cURL command string and converts it into a NewRequest object.
@@ -71,9 +71,11 @@ export function parseCurlToRequest(curl: string): NewRequest | null {
  * Converts a request object into a cURL command string.
  */
 export function generateCurlCommand(request: NewRequest, collection: Collection): string {
+  const variables = resolveVariables();
   const { finalUrl, finalHeaders, finalBody, finalParams, finalGqlQuery, finalGqlVariables } = prepareRequest(
     request,
     collection,
+    variables,
   );
 
   let commandUrl = finalUrl;

@@ -1,8 +1,10 @@
 import {
   Action,
   ActionPanel,
+  Alert,
   Clipboard,
   Color,
+  confirmAlert,
   getPreferenceValues,
   Icon,
   Keyboard,
@@ -16,7 +18,7 @@ import { $currentEnvironmentId, $environments } from "../store/environments";
 import { ManageVariablesList } from "../views/manage-variables-list";
 import { HistoryView } from "../views/history-list-view";
 import { $collectionSortPreferences, $isHistoryEnabled } from "../store/settings";
-import { type Collection, newCollectionSchema, type Request } from "~/types";
+import { type Collection, newCollectionSchema } from "~/types";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 import { parseCurlToRequest } from "~/utils/curl-to-request";
 import { RequestForm } from "~/views/request-form";
@@ -28,6 +30,8 @@ import os from "os";
 import { randomUUID } from "crypto";
 import { backupAllData } from "~/utils/backup";
 import { SORT_OPTIONS, SortOption } from "~/constants";
+import { $cookies } from "~/store/cookies";
+import { HelpView } from "~/views/help-view";
 
 async function handleSelectEnvironment(envId: string) {
   const currentCollectionId = $currentCollectionId.get();
@@ -310,6 +314,32 @@ export function GlobalActions() {
             toast.message = String(error);
           }
         }}
+      />
+      <Action
+        title="Clear All Cookies"
+        icon={Icon.XMarkCircle}
+        style={Action.Style.Destructive}
+        onAction={async () => {
+          if (
+            await confirmAlert({
+              title: "Clear All Cookies?",
+              message: "This will delete all stored cookies from all domains.",
+              primaryAction: { title: "Clear", style: Alert.ActionStyle.Destructive },
+            })
+          ) {
+            await $cookies.setAndFlush({});
+            await showToast({
+              style: Toast.Style.Success,
+              title: "Cookies Cleared",
+            });
+          }
+        }}
+      />
+      <Action.Push
+        title="Help & Documentation"
+        icon={Icon.QuestionMark}
+        target={<HelpView />}
+        shortcut={{ modifiers: ["cmd"], key: "h" }}
       />
     </ActionPanel.Section>
   );

@@ -12,19 +12,8 @@ export const headersArrayToObject = (headers: { key: string; value: string }[]) 
   return Object.fromEntries(headers.map(({ key, value }) => [key, value]));
 };
 
-export function prepareRequest(request: NewRequest, collection: Collection) {
-  const variables = resolveVariables();
-
-  const baseUrl = variables.baseUrl; // Get baseUrl from the environment
-  const requestUrl = substitutePlaceholders(request.url, variables) ?? "";
-
-  let finalUrl = requestUrl;
-  // If the path is relative, combine it with the baseUrl from the environment
-  if (requestUrl === undefined || requestUrl.length === 0) {
-    finalUrl = baseUrl;
-  } else if (requestUrl?.startsWith("/") && baseUrl) {
-    finalUrl = `${baseUrl.replace(/\/$/, "")}${requestUrl}`;
-  }
+export function prepareRequest(request: NewRequest, collection: Collection, variables: Record<string, string>) {
+  const finalUrl = substitutePlaceholders(request.url, variables) ?? "";
 
   // Substitute placeholders in COLLECTION headers
   const collectionHeaders =
@@ -105,7 +94,9 @@ async function processResponse(request: NewRequest, response: AxiosResponse) {
       }
 
       if (typeof extractedValue === "string" || typeof extractedValue === "number") {
-        saveVariableToActiveEnvironment(action.variableKey, String(extractedValue));
+        if (action.storage === "ENVIRONMENT") {
+          saveVariableToActiveEnvironment(action.variableKey, String(extractedValue));
+        }
       }
     }
   }
@@ -123,16 +114,24 @@ async function processResponse(request: NewRequest, response: AxiosResponse) {
 }
 
 // --- THE REFACTORED MAIN FUNCTION ---
-export async function runRequest(request: NewRequest, collection: Collection) {
-  // 1. PREPARE
-  const preparedRequest = prepareRequest(request, collection);
+export async function runRequest(
+  request: NewRequest,
+  collection: Collection,
+  temporaryVariables?: Record<string, string>,
+) {
+  // 1. PREPARE VARIABLES
+  const envVars = resolveVariables();
+  const allVars = { ...envVars, ...temporaryVariables };
 
-  // 2. EXECUTE
+  // 2. PREPARE REQUEST
+  const preparedRequest = prepareRequest(request, collection, allVars);
+
+  // 3. EXECUTE
   try {
     const config = buildAxiosConfig(request, preparedRequest);
     const response = await axios(config);
 
-    // 3. PROCESS on success
+    // 4. PROCESS on success
     await processResponse(request, response);
 
     return response;

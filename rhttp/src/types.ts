@@ -63,8 +63,17 @@ export const responseActionSchema = z.object({
   sourcePath: z.string(),
   // The name of the variable to save the extracted value to
   variableKey: z.string(),
+  storage: z.enum(["TEMPORARY", "ENVIRONMENT"]).default("TEMPORARY"),
 });
 export type ResponseAction = z.infer<typeof responseActionSchema>;
+
+export const preRequestActionSchema = z.object({
+  id: z.uuid(),
+  requestId: z.uuid(),
+  enabled: z.boolean().default(true),
+});
+
+export type PreRequestAction = z.infer<typeof preRequestActionSchema>;
 
 /** Schema for a complete request. */
 const baseRequestSchema = z.object({
@@ -78,6 +87,7 @@ const baseRequestSchema = z.object({
   variables: z.string().optional(),
   headers: headersSchema,
   responseActions: z.array(responseActionSchema).optional(),
+  preRequestActions: z.array(preRequestActionSchema).optional(),
 });
 
 const requestValidation = (data: z.infer<typeof baseRequestSchema>, ctx: z.RefinementCtx) => {
