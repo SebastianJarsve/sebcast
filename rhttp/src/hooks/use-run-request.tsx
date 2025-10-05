@@ -35,6 +35,7 @@ export function useRunRequest() {
           const preRequest = collection.requests.find((r) => r.id === preRequestAction.requestId);
 
           if (preRequest) {
+            console.log(`Running pre-request: ${preRequest.title || preRequest.url}`);
             toast.message = `Running pre-request: ${preRequest.title || preRequest.url}`;
 
             // Run the pre-request with current temporary variables
