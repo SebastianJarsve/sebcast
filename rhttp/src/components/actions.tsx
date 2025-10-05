@@ -32,6 +32,8 @@ import { backupAllData } from "~/utils/backup";
 import { SORT_OPTIONS, SortOption } from "~/constants";
 import { $cookies } from "~/store/cookies";
 import { HelpView } from "~/views/help-view";
+import z from "zod";
+import { ErrorDetail } from "~/views/error-view";
 
 async function handleSelectEnvironment(envId: string) {
   const currentCollectionId = $currentCollectionId.get();
@@ -104,6 +106,7 @@ export function HistoryActions() {
 }
 
 export function CollectionActions({ children }: PropsWithChildren) {
+  const { push } = useNavigation();
   const { value: currentCollectionId } = useAtom($currentCollectionId);
   const { value: collections } = useAtom($collections);
   const currentCollection = collections.find((c) => c.id === currentCollectionId);
@@ -143,6 +146,9 @@ export function CollectionActions({ children }: PropsWithChildren) {
             await createCollection(newCollectionData);
             await showToast({ title: "Collection Imported Successfully" });
           } catch (error) {
+            if (error instanceof z.ZodError) {
+              push(<ErrorDetail error={error} />);
+            }
             await showToast({
               style: Toast.Style.Failure,
               title: "Import Failed",
