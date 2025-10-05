@@ -72,7 +72,7 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
               icon={Icon.Globe}
               onAction={async () => {
                 const filePath = path.join(os.tmpdir(), `raycast-response-${randomUUID()}.html`);
-                await fs.writeFile(response.body as string, filePath);
+                await fs.writeFile(filePath, response.body as string);
                 await open(filePath);
               }}
             />
