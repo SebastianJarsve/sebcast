@@ -22,7 +22,7 @@ importers:
         version: 2.2.1(@raycast/api@1.103.2(@types/node@24.5.2)(@types/react@19.1.13))(react@19.0.0)
       '@sebastianjarsve/persistent-atom':
         specifier: github:sebastianjarsve/nanostores-persistent
-        version: https://codeload.github.com/sebastianjarsve/nanostores-persistent/tar.gz/0bdb5ce48801d6f54b39a9d7635e3aa482303f95(@raycast/api@1.103.2(@types/node@24.5.2)(@types/react@19.1.13))(nanostores@1.0.1)(react@19.0.0)(zod@4.1.9)
+        version: https://codeload.github.com/sebastianjarsve/nanostores-persistent/tar.gz/f861721390fb265e939516fbd070eaa03cc397ac(@raycast/api@1.103.2(@types/node@24.5.2)(@types/react@19.1.13))(nanostores@1.0.1)(react@19.0.0)(zod@4.1.9)
       axios:
         specifier: ^1.12.2
         version: 1.12.2
@@ -485,8 +485,8 @@ packages:
       react:
         optional: true
 
-  '@sebastianjarsve/persistent-atom@https://codeload.github.com/sebastianjarsve/nanostores-persistent/tar.gz/0bdb5ce48801d6f54b39a9d7635e3aa482303f95':
-    resolution: {tarball: https://codeload.github.com/sebastianjarsve/nanostores-persistent/tar.gz/0bdb5ce48801d6f54b39a9d7635e3aa482303f95}
+  '@sebastianjarsve/persistent-atom@https://codeload.github.com/sebastianjarsve/nanostores-persistent/tar.gz/f861721390fb265e939516fbd070eaa03cc397ac':
+    resolution: {tarball: https://codeload.github.com/sebastianjarsve/nanostores-persistent/tar.gz/f861721390fb265e939516fbd070eaa03cc397ac}
     version: 1.0.0
     peerDependencies:
       '@raycast/api': ^1.103.1
@@ -1584,7 +1584,7 @@ snapshots:
     optionalDependencies:
       react: 19.0.0
 
-  '@sebastianjarsve/persistent-atom@https://codeload.github.com/sebastianjarsve/nanostores-persistent/tar.gz/0bdb5ce48801d6f54b39a9d7635e3aa482303f95(@raycast/api@1.103.2(@types/node@24.5.2)(@types/react@19.1.13))(nanostores@1.0.1)(react@19.0.0)(zod@4.1.9)':
+  '@sebastianjarsve/persistent-atom@https://codeload.github.com/sebastianjarsve/nanostores-persistent/tar.gz/f861721390fb265e939516fbd070eaa03cc397ac(@raycast/api@1.103.2(@types/node@24.5.2)(@types/react@19.1.13))(nanostores@1.0.1)(react@19.0.0)(zod@4.1.9)':
     dependencies:
       '@nanostores/react': 1.0.0(nanostores@1.0.1)(react@19.0.0)
       '@raycast/api': 1.103.2(@types/node@24.5.2)(@types/react@19.1.13)

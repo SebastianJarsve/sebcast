@@ -107,6 +107,7 @@ async function processResponse(request: NewRequest, response: AxiosResponse) {
   if ($isHistoryEnabled.get()) {
     const responseData: ResponseData = {
       requestMethod: request.method,
+      requestUrl: response.config.url ?? request.url,
       status: response.status,
       statusText: response.statusText,
       headers: { ...response.headers } as Record<string, string>,

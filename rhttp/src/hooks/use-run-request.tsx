@@ -139,6 +139,7 @@ export function useRunRequest() {
             requestSnapshot={request}
             response={{
               requestMethod: request.method,
+              requestUrl: error.response.config.url ?? request.url,
               status: error.response.status,
               statusText: error.response.statusText,
               headers: error.response.headers as Record<string, string>,
@@ -148,19 +149,32 @@ export function useRunRequest() {
         );
       } else if (error instanceof z.ZodError) {
         toast.hide();
-        // This is a validation error from our schema -> Show the ErrorDetail view
         push(<ErrorDetail error={error} />);
       } else if (axios.isAxiosError(error) && error.code === "ENOTFOUND") {
-        // This is a DNS/network error, which often means a VPN isn't connected.
+        // DNS error
         toast.style = Toast.Style.Failure;
         toast.title = "Host Not Found";
         toast.message = "Check your internet or VPN connection.";
-      } else {
-        // This is a network error (e.g., connection refused) or another issue.
-        // For these, a toast is appropriate.
+      } else if (axios.isAxiosError(error) && error.code === "ECONNREFUSED") {
+        // Connection refused - server not running
+        toast.style = Toast.Style.Failure;
+        toast.title = "Connection Refused";
+        toast.message = "The server is not responding. Check if it's running.";
+      } else if (axios.isAxiosError(error) && error.code === "ETIMEDOUT") {
+        // Timeout
+        toast.style = Toast.Style.Failure;
+        toast.title = "Request Timeout";
+        toast.message = "The server took too long to respond.";
+      } else if (axios.isAxiosError(error)) {
+        // Other Axios errors - show the error code/message
         toast.style = Toast.Style.Failure;
         toast.title = "Request Failed";
-        toast.message = String(error);
+        toast.message = error.code ? `${error.code}: ${error.message}` : error.message;
+      } else {
+        // Unknown error
+        toast.style = Toast.Style.Failure;
+        toast.title = "Request Failed";
+        toast.message = error instanceof Error ? error.message : String(error);
       }
     } finally {
       setIsLoading(false);

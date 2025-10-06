@@ -10,7 +10,7 @@
   "commands": [
     {
       "name": "index",
-      "title": "rhttp",
+      "title": "Raycast HTTP Client",
       "description": "",
       "mode": "view"
     }

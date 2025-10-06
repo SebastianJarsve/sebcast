@@ -186,11 +186,14 @@ function RequestListItem({ request, currentCollection, collections }: RequestLis
 
   const variables = useVariables();
 
+  const displayTitle = substitutePlaceholders(request.title || request.url, variables) ?? "";
+  const displaySubtitle = request.title ? substitutePlaceholders(request.url, variables) : undefined;
+
   return (
     <List.Item
       key={request.id}
-      title={substitutePlaceholders(request.title, variables) ?? request.url}
-      subtitle={request.title ? substitutePlaceholders(request.url, variables) : undefined}
+      title={displayTitle}
+      subtitle={displaySubtitle}
       accessories={[
         {
           tag: {
