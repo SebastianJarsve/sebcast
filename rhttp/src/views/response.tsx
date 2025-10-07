@@ -34,10 +34,6 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
     return METHODS[response.requestMethod]?.color ?? Color.PrimaryText;
   }
 
-  const contentType = String(response.headers["content-type"] || "").toLowerCase();
-  const isHtml = contentType.includes("text/html");
-  const isCsv = contentType.includes("text/csv") || contentType.includes("application/csv");
-
   // Create the metadata component once, as it's used in both views.
   const metadata = (
     <Detail.Metadata>
@@ -57,124 +53,69 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
     </Detail.Metadata>
   );
 
-  // --- Render for HTML ---
-  if (isHtml && typeof response.body === "string") {
-    const isBodyLarge = response.body.length > MAX_BODY_LENGTH;
-    const bodyPreview = isBodyLarge
-      ? response.body.slice(0, MAX_BODY_LENGTH) + "\n\n... (HTML body truncated)"
-      : response.body;
+  // Detect content type
+  const contentType = String(response.headers["content-type"] || "").toLowerCase();
+  const responseType = contentType.includes("text/html")
+    ? "html"
+    : contentType.includes("text/csv") || contentType.includes("application/csv")
+      ? "csv"
+      : "json";
 
-    // Toggle between body and headers
-    const markdown = showHeaders
-      ? `## Response Headers\n\`\`\`json\n${JSON.stringify(response.headers, null, 2)}\n\`\`\``
-      : `## HTML Preview\n\`\`\`html\n${bodyPreview}\n\`\`\``;
+  // Get body as string
+  const bodyString = typeof response.body === "string" ? response.body : JSON.stringify(response.body, null, 2);
 
-    return (
-      <Detail
-        markdown={markdown}
-        navigationTitle="HTML Response"
-        metadata={metadata}
-        actions={
-          <ActionPanel>
-            <Action
-              title={showHeaders ? "Show Body" : "Show Headers"}
-              icon={showHeaders ? Icon.Code : Icon.List}
-              onAction={() => setShowHeaders(!showHeaders)}
-              shortcut={{ modifiers: ["cmd"], key: "h" }}
-            />
-            <Action
-              title="Open in Browser"
-              icon={Icon.Globe}
-              onAction={async () => {
-                const filePath = path.join(os.tmpdir(), `raycast-response-${randomUUID()}.html`);
-                await fs.writeFile(filePath, response.body as string);
-                await open(filePath);
-              }}
-            />
+  // Prepare markdown based on type and toggle
+  const getMarkdown = () => {
+    if (showHeaders) {
+      return `## Response Headers\n\`\`\`json\n${JSON.stringify(response.headers, null, 2)}\n\`\`\``;
+    }
 
-            <OpenInEditorAction responseBody={response.body} />
-            <Action.CopyToClipboard title="Copy HTML Body" content={response.body} />
-            <Action.CopyToClipboard
-              title="Copy Headers"
-              content={JSON.stringify(response.headers, null, 2)}
-              shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
-            />
-            <Action
-              title="Save to History"
-              icon={Icon.Clock}
-              onAction={async () => {
-                await addHistoryEntry(requestSnapshot, response, sourceRequestId);
-                showToast({ title: "Saved to History" });
-              }}
-            />
-          </ActionPanel>
-        }
-      />
-    );
-  }
+    const isBodyLarge = bodyString.length > MAX_BODY_LENGTH;
+    const bodyPreview = isBodyLarge ? bodyString.slice(0, MAX_BODY_LENGTH) + "\n\n... (Body truncated)" : bodyString;
 
-  // --- Render for CSV ---
-  if (isCsv && typeof response.body === "string") {
-    const isBodyLarge = response.body.length > MAX_BODY_LENGTH;
-    const bodyPreview = isBodyLarge
-      ? response.body.slice(0, MAX_BODY_LENGTH) + "\n\n... (CSV truncated)"
-      : response.body;
+    switch (responseType) {
+      case "html":
+        return `## HTML Preview\n\`\`\`html\n${bodyPreview}\n\`\`\``;
+      case "csv":
+        return `## CSV Data\n\`\`\`\n${bodyPreview}\n\`\`\``;
+      case "json":
+      default:
+        return `## JSON Body\n\`\`\`json\n${bodyPreview}\n\`\`\``;
+    }
+  };
 
-    // Toggle between body and headers
-    const markdown = showHeaders
-      ? `## Response Headers\n\`\`\`json\n${JSON.stringify(response.headers, null, 2)}\n\`\`\``
-      : `## CSV Data\n\`\`\`csv\n${bodyPreview}\n\`\`\``;
-
-    return (
-      <Detail
-        markdown={markdown}
-        navigationTitle="CSV Response"
-        metadata={metadata}
-        actions={
-          <ActionPanel>
-            <Action
-              title={showHeaders ? "Show Body" : "Show Headers"}
-              icon={showHeaders ? Icon.Code : Icon.List}
-              onAction={() => setShowHeaders(!showHeaders)}
-              shortcut={{ modifiers: ["cmd"], key: "h" }}
-            />
-            <Action.CopyToClipboard title="Copy CSV" content={response.body} />
-            <Action.CopyToClipboard
-              title="Copy Headers"
-              content={JSON.stringify(response.headers, null, 2)}
-              shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
-            />
-            <OpenInEditorAction responseBody={response.body} />
-            <Action
-              title="Save to History"
-              icon={Icon.Clock}
-              onAction={async () => {
-                await addHistoryEntry(requestSnapshot, response, sourceRequestId);
-                showToast({ title: "Saved to History" });
-              }}
-            />
-          </ActionPanel>
-        }
-      />
-    );
-  }
-
-  // --- Render for JSON (and other types) ---
-  const bodyString = JSON.stringify(response.body, null, 2);
-  const isBodyLarge = bodyString.length > MAX_BODY_LENGTH;
-  const bodyPreview = isBodyLarge ? bodyString.slice(0, MAX_BODY_LENGTH) + "\n\n... (Body truncated)" : bodyString;
-
-  // Toggle between body and headers
-  const markdown = showHeaders
-    ? `## Response Headers\n\`\`\`json\n${JSON.stringify(response.headers, null, 2)}\n\`\`\``
-    : `## JSON Body\n\`\`\`json\n${bodyPreview}\n\`\`\``;
-
-  const MAX_JSON_EXPLORER_BODY_SIZE = 1000 * 1024;
-  const isBodyTooLarge = bodyString.length > MAX_JSON_EXPLORER_BODY_SIZE;
+  // Type-specific actions
+  const getTypeSpecificActions = () => {
+    switch (responseType) {
+      case "html":
+        return (
+          <Action
+            title="Open in Browser"
+            icon={Icon.Globe}
+            onAction={async () => {
+              const filePath = path.join(os.tmpdir(), `raycast-response-${randomUUID()}.html`);
+              await fs.writeFile(filePath, bodyString);
+              await open(filePath);
+            }}
+          />
+        );
+      case "json":
+        const isBodyTooLarge = bodyString.length > 1000 * 1024;
+        return !isBodyTooLarge && !showHeaders ? (
+          <Action.Push
+            title="Explore Full Body"
+            icon={Icon.CodeBlock}
+            target={<JSONExplorer data={response.body} title="Response Body" />}
+          />
+        ) : null;
+      default:
+        return null;
+    }
+  };
 
   return (
     <Detail
-      markdown={markdown}
+      markdown={getMarkdown()}
       navigationTitle="JSON Response"
       metadata={metadata}
       actions={
@@ -185,13 +126,7 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
             onAction={() => setShowHeaders(!showHeaders)}
             shortcut={{ modifiers: ["cmd"], key: "h" }}
           />
-          {!isBodyTooLarge && !showHeaders && (
-            <Action.Push
-              title="Explore Full Body"
-              icon={Icon.CodeBlock}
-              target={<JSONExplorer data={response.body} title="Response Body" />}
-            />
-          )}
+          {getTypeSpecificActions()}
           <OpenInEditorAction responseBody={bodyString} />
           <Action.CopyToClipboard title="Copy Full Body" content={bodyString} />
           <Action.CopyToClipboard
