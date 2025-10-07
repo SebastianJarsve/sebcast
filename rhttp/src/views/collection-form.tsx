@@ -70,7 +70,7 @@ export function CollectionForm({ collectionId }: CollectionFormProps) {
         <ActionPanel>
           <Action.SubmitForm
             title="Save Collection"
-            icon={Icon.SaveDocument}
+            icon={Icon.HardDrive}
             shortcut={{ modifiers: ["cmd"], key: "s" }}
             onSubmit={handleSubmit}
           />

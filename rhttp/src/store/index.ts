@@ -69,6 +69,9 @@ export async function createCollection(data: NewCollection | Collection) {
   // Validation
   z.array(collectionSchema).parse(newState);
   await $collections.setAndFlush(newState);
+
+  // Set current collection to be the new collection.
+  await $currentCollectionId.setAndFlush(newCollection.id);
 }
 
 /**

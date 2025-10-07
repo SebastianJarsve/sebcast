@@ -1,7 +1,6 @@
-import { Action, ActionPanel, Form, showToast, Toast, useNavigation } from "@raycast/api";
+import { Action, ActionPanel, Alert, confirmAlert, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { $environments, saveVariable } from "../store/environments";
-import { useState } from "react";
-import { Variable } from "../types";
+import { Variable } from "~/types";
 import { useAtom } from "@sebastianjarsve/persistent-atom/react";
 
 interface VariableFormProps {
@@ -16,7 +15,6 @@ export function VariableForm({ environmentId, variableKey }: VariableFormProps) 
   // Find the current value if we are editing an existing variable
   const environment = environments.find((e) => e.id === environmentId);
   const currentVariable = variableKey ? environment?.variables[variableKey] : undefined;
-  const [isValueEditable, setIsValueEditable] = useState(!variableKey);
 
   // The 'values' from onSubmit will only contain 'key' if it's a new variable
   async function handleSubmit(values: { key?: string; value?: string; isSecret: boolean }) {
@@ -27,7 +25,15 @@ export function VariableForm({ environmentId, variableKey }: VariableFormProps) 
       return;
     }
 
-    // ... (uniqueness check can go here if desired)
+    if (!variableKey && environment?.variables[keyToSave]) {
+      const confirmed = await confirmAlert({
+        title: "Variable Already Exists",
+        message: `A variable named "${keyToSave}" already exists. Do you want to overwrite it?`,
+        primaryAction: { title: "Overwrite", style: Alert.ActionStyle.Destructive },
+      });
+
+      if (!confirmed) return;
+    }
 
     const newValue = values.value ?? "";
     const variableData: Variable = {
@@ -46,6 +52,7 @@ export function VariableForm({ environmentId, variableKey }: VariableFormProps) 
         <ActionPanel>
           <Action.SubmitForm
             title="Save Variable"
+            icon={Icon.HardDrive}
             onSubmit={handleSubmit}
             shortcut={{ modifiers: ["cmd"], key: "s" }}
           />

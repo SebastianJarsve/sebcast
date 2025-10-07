@@ -190,6 +190,7 @@ History is saved locally and never shared.
 ✅ Use descriptive request titles\
 ✅ Group related requests in collections\
 ✅ Use environments for dev/staging/prod\
+✅ Use emojis to differentiate environments (🔧 Dev, 🚧 Staging, 🚀 Production)\
 ✅ Sort requests for easy navigation
 
 ### Variables

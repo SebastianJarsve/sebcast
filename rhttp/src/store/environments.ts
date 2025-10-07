@@ -2,8 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { persistentAtom } from "@sebastianjarsve/persistent-atom";
 import { createLocalStorageAdapter } from "@sebastianjarsve/persistent-atom/adapters";
-import { Environment, environmentsSchema, Variable } from "../types";
-import { computed } from "nanostores";
+import { Environment, environmentSchema, environmentsSchema, Variable } from "../types";
 import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 
 export const $environments = persistentAtom<Environment[]>([], {
@@ -71,7 +70,11 @@ export async function createEnvironment(name: string) {
     name,
     variables: {},
   };
-  await $environments.setAndFlush([...$environments.get(), newEnvironment]);
+  const newState = [...$environments.get(), newEnvironment];
+  environmentsSchema.parse(newState);
+  await $environments.setAndFlush(newState);
+
+  await $currentEnvironmentId.setAndFlush(newEnvironment.id);
 }
 
 /**
@@ -81,6 +84,7 @@ export async function createEnvironment(name: string) {
  */
 export async function updateEnvironment(environmentId: string, data: Partial<Environment>) {
   const updated = $environments.get().map((env) => (env.id === environmentId ? { ...env, ...data } : env));
+  environmentsSchema.parse(updated);
   await $environments.setAndFlush(updated);
 }
 
@@ -90,6 +94,7 @@ export async function updateEnvironment(environmentId: string, data: Partial<Env
  */
 export async function deleteEnvironment(environmentId: string) {
   const updated = $environments.get().filter((env) => env.id !== environmentId);
+  environmentsSchema.parse(updated);
   $environments.setAndFlush(updated);
 
   // If the deleted environment was the active one, clear the active selection.
@@ -115,6 +120,9 @@ export async function saveVariable(environmentId: string, key: string, variableD
     }
     return env;
   });
+
+  environmentsSchema.parse(updated);
+
   await $environments.setAndFlush(updated);
 }
 
@@ -131,6 +139,7 @@ export async function deleteVariable(environmentId: string, key: string) {
     }
     return env;
   });
+  environmentsSchema.parse(updated);
   await $environments.setAndFlush(updated);
 }
 

@@ -32,6 +32,8 @@ export async function addHistoryEntry(request: NewRequest, response: ResponseDat
   // Add the new entry to the top of the list and keep up to 100 entries.
   const newHistory = [newEntry, ...$history.get()].slice(0, 100);
 
+  historySchema.parse(newHistory);
+
   // Use .set() for a background save, which is fine for non-critical data like history.
   await $history.setAndFlush(newHistory);
 }
@@ -42,6 +44,7 @@ export async function addHistoryEntry(request: NewRequest, response: ResponseDat
  */
 export async function deleteHistoryEntry(entryId: string) {
   const newHistory = $history.get().filter((entry) => entry.id !== entryId);
+  historySchema.parse(newHistory);
   await $history.setAndFlush(newHistory);
 }
 
@@ -49,5 +52,6 @@ export async function deleteHistoryEntry(entryId: string) {
  * Clears all entries from the history log.
  */
 export async function clearHistory() {
+  historySchema.parse([]);
   await $history.setAndFlush([]);
 }
