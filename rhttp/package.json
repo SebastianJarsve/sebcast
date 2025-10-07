@@ -2,16 +2,18 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "rhttp",
   "title": "rhttp",
-  "description": "HTTP CLient for Raycast",
-  "icon": "extension_icon.png",
+  "description": "HTTP Client for Raycast",
+  "icon": "icon.png",
   "author": "SebastianJarsve",
+  "owner": "SebastianJarsve",
   "categories": ["Developer Tools"],
   "license": "MIT",
+  "keywords": ["http", "api", "rest", "client", "postman", "insomnia", "testing", "developer"],
   "commands": [
     {
       "name": "index",
       "title": "Raycast HTTP Client",
-      "description": "",
+      "description": "Create and run HTTP requests with advanced features",
       "mode": "view"
     }
   ],

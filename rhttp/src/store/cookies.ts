@@ -1,4 +1,3 @@
-// src/store/cookies.ts
 import { persistentAtom } from "@sebastianjarsve/persistent-atom";
 import { cookiesSchema, Cookies, ParsedCookie } from "../types";
 import { createRaycastFileAdapter } from "../lib/adapters";

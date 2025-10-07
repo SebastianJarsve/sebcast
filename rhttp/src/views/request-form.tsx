@@ -140,7 +140,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
   return (
     <Form
       isLoading={isRunning || isSaving}
-      navigationTitle={`Environment = ${currentEnvironment?.name}`}
+      navigationTitle={`${currentEnvironment?.name}`}
       actions={
         <ActionPanel>
           {isRunning ? (

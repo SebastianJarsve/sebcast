@@ -2,6 +2,7 @@ import { Action, ActionPanel, Color, Detail, Icon, open, showToast, useNavigatio
 import { randomUUID } from "crypto";
 import fs from "fs/promises";
 import path from "path";
+import { useState } from "react";
 import { MAX_BODY_LENGTH, METHODS } from "~/constants";
 
 import { addHistoryEntry } from "~/store/history";
@@ -19,6 +20,8 @@ export interface ResponseViewProps {
 
 export function ResponseView({ requestSnapshot, sourceRequestId, response }: ResponseViewProps) {
   const { push } = useNavigation();
+  const [showHeaders, setShowHeaders] = useState(false);
+
   function getStatusColor(status: number) {
     if (status >= 500) return Color.Red;
     if (status >= 400) return Color.Red;
@@ -33,11 +36,13 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
 
   const contentType = String(response.headers["content-type"] || "").toLowerCase();
   const isHtml = contentType.includes("text/html");
+  const isCsv = contentType.includes("text/csv") || contentType.includes("application/csv");
 
   // Create the metadata component once, as it's used in both views.
   const metadata = (
     <Detail.Metadata>
       <Detail.Metadata.Link title="URL" text={response.requestUrl} target={response.requestUrl} />
+      <Detail.Metadata.Separator />
       <Detail.Metadata.TagList title="Method">
         <Detail.Metadata.TagList.Item text={response.requestMethod} color={getMethodColor()} />
       </Detail.Metadata.TagList>
@@ -47,7 +52,7 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
       </Detail.Metadata.TagList>
       <Detail.Metadata.Separator />
       {Object.entries(response.headers).map(([key, value]) => (
-        <Detail.Metadata.Label key={key} title={key} text={value} />
+        <Detail.Metadata.Label key={key} title={key} text={value.toString()} />
       ))}
     </Detail.Metadata>
   );
@@ -58,7 +63,11 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
     const bodyPreview = isBodyLarge
       ? response.body.slice(0, MAX_BODY_LENGTH) + "\n\n... (HTML body truncated)"
       : response.body;
-    const markdown = `## HTML Preview\n\`\`\`html\n${bodyPreview}\n\`\`\``;
+
+    // Toggle between body and headers
+    const markdown = showHeaders
+      ? `## Response Headers\n\`\`\`json\n${JSON.stringify(response.headers, null, 2)}\n\`\`\``
+      : `## HTML Preview\n\`\`\`html\n${bodyPreview}\n\`\`\``;
 
     return (
       <Detail
@@ -67,6 +76,12 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
         metadata={metadata}
         actions={
           <ActionPanel>
+            <Action
+              title={showHeaders ? "Show Body" : "Show Headers"}
+              icon={showHeaders ? Icon.Code : Icon.List}
+              onAction={() => setShowHeaders(!showHeaders)}
+              shortcut={{ modifiers: ["cmd"], key: "h" }}
+            />
             <Action
               title="Open in Browser"
               icon={Icon.Globe}
@@ -79,6 +94,57 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
 
             <OpenInEditorAction responseBody={response.body} />
             <Action.CopyToClipboard title="Copy HTML Body" content={response.body} />
+            <Action.CopyToClipboard
+              title="Copy Headers"
+              content={JSON.stringify(response.headers, null, 2)}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+            />
+            <Action
+              title="Save to History"
+              icon={Icon.Clock}
+              onAction={async () => {
+                await addHistoryEntry(requestSnapshot, response, sourceRequestId);
+                showToast({ title: "Saved to History" });
+              }}
+            />
+          </ActionPanel>
+        }
+      />
+    );
+  }
+
+  // --- Render for CSV ---
+  if (isCsv && typeof response.body === "string") {
+    const isBodyLarge = response.body.length > MAX_BODY_LENGTH;
+    const bodyPreview = isBodyLarge
+      ? response.body.slice(0, MAX_BODY_LENGTH) + "\n\n... (CSV truncated)"
+      : response.body;
+
+    // Toggle between body and headers
+    const markdown = showHeaders
+      ? `## Response Headers\n\`\`\`json\n${JSON.stringify(response.headers, null, 2)}\n\`\`\``
+      : `## CSV Data\n\`\`\`csv\n${bodyPreview}\n\`\`\``;
+
+    return (
+      <Detail
+        markdown={markdown}
+        navigationTitle="CSV Response"
+        metadata={metadata}
+        actions={
+          <ActionPanel>
+            <Action
+              title={showHeaders ? "Show Body" : "Show Headers"}
+              icon={showHeaders ? Icon.Code : Icon.List}
+              onAction={() => setShowHeaders(!showHeaders)}
+              shortcut={{ modifiers: ["cmd"], key: "h" }}
+            />
+            <Action.CopyToClipboard title="Copy CSV" content={response.body} />
+            <Action.CopyToClipboard
+              title="Copy Headers"
+              content={JSON.stringify(response.headers, null, 2)}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+            />
+            <OpenInEditorAction responseBody={response.body} />
             <Action
               title="Save to History"
               icon={Icon.Clock}
@@ -97,7 +163,12 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
   const bodyString = JSON.stringify(response.body, null, 2);
   const isBodyLarge = bodyString.length > MAX_BODY_LENGTH;
   const bodyPreview = isBodyLarge ? bodyString.slice(0, MAX_BODY_LENGTH) + "\n\n... (Body truncated)" : bodyString;
-  const markdown = `## JSON Body\n\`\`\`json\n${bodyPreview}\n\`\`\``;
+
+  // Toggle between body and headers
+  const markdown = showHeaders
+    ? `## Response Headers\n\`\`\`json\n${JSON.stringify(response.headers, null, 2)}\n\`\`\``
+    : `## JSON Body\n\`\`\`json\n${bodyPreview}\n\`\`\``;
+
   const MAX_JSON_EXPLORER_BODY_SIZE = 1000 * 1024;
   const isBodyTooLarge = bodyString.length > MAX_JSON_EXPLORER_BODY_SIZE;
 
@@ -108,7 +179,13 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
       metadata={metadata}
       actions={
         <ActionPanel>
-          {!isBodyTooLarge && (
+          <Action
+            title={showHeaders ? "Show Body" : "Show Headers"}
+            icon={showHeaders ? Icon.Code : Icon.List}
+            onAction={() => setShowHeaders(!showHeaders)}
+            shortcut={{ modifiers: ["cmd"], key: "h" }}
+          />
+          {!isBodyTooLarge && !showHeaders && (
             <Action.Push
               title="Explore Full Body"
               icon={Icon.CodeBlock}
@@ -117,6 +194,11 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
           )}
           <OpenInEditorAction responseBody={bodyString} />
           <Action.CopyToClipboard title="Copy Full Body" content={bodyString} />
+          <Action.CopyToClipboard
+            title="Copy Headers"
+            content={JSON.stringify(response.headers, null, 2)}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+          />
           <Action
             title="Save to History"
             icon={Icon.Clock}

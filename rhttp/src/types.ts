@@ -49,7 +49,13 @@ export const cookieOptionsSchema = z.object({
   expires: z.date().optional(),
   httpOnly: z.boolean().default(false),
   secure: z.boolean().optional(),
-  sameSite: z.union([z.boolean(), z.enum(["lax", "strict", "none"])]).optional(),
+  sameSite: z
+    .union([
+      z.boolean(),
+      z.string().transform((val) => val.toLowerCase()), // ✅ Convert to lowercase
+    ])
+    .pipe(z.union([z.boolean(), z.enum(["lax", "strict", "none"])])) // ✅ Then validate
+    .optional(),
 });
 export type CookieOptions = z.infer<typeof cookieOptionsSchema>;
 
@@ -186,7 +192,7 @@ export const responseDataSchema = z.object({
   requestUrl: z.string(),
   status: z.number(),
   statusText: z.string(),
-  headers: z.record(z.string(), z.string()),
+  headers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
   body: z.unknown(),
 });
 export type ResponseData = z.infer<typeof responseDataSchema>;

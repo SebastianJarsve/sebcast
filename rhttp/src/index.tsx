@@ -324,7 +324,7 @@ export default function RequestList() {
   return (
     <List
       isLoading={!isReady || isLoading}
-      navigationTitle={`Environment = ${currentEnvironment?.name}`}
+      navigationTitle={`${currentEnvironment?.name}`}
       searchBarPlaceholder="Search requests..."
       searchBarAccessory={<CollectionDropdown />}
       actions={
