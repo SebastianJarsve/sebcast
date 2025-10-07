@@ -163,25 +163,46 @@ export function CollectionActions({ children }: PropsWithChildren) {
 
 export function CopyVariableAction() {
   const resolvedVariables = resolveVariables();
-  const variableKeys = Object.keys(resolvedVariables);
+  const { value: collections } = useAtom($collections);
+  const { value: currentCollectionId } = useAtom($currentCollectionId);
+
+  const currentCollection = collections.find((c) => c.id === currentCollectionId);
+
+  // Get all potential temp variables from response actions
+  const tempVariableKeys = new Set<string>();
+  currentCollection?.requests.forEach((request) => {
+    request.responseActions?.forEach((action) => {
+      if (action.storage === "TEMPORARY") {
+        tempVariableKeys.add(action.variableKey);
+      }
+    });
+  });
+
+  const allKeys = [...Object.keys(resolvedVariables), ...Array.from(tempVariableKeys)];
 
   return (
     <ActionPanel.Submenu title="Copy Variable" icon={Icon.Key} shortcut={{ modifiers: ["cmd", "shift"], key: "i" }}>
-      {variableKeys.length > 0 ? (
-        variableKeys.map((key) => (
-          <Action
-            key={key}
-            title={key}
-            onAction={async () => {
-              const content = `{{${key}}}`;
-              await Clipboard.copy(content);
-              await showToast({
-                style: Toast.Style.Success,
-                title: "Copied Placeholder",
-              });
-            }}
-          />
-        ))
+      {allKeys.length > 0 ? (
+        allKeys.map((key) => {
+          const isTemp = tempVariableKeys.has(key);
+          return (
+            <Action
+              key={key}
+              title={`{{${key}}}`}
+              icon={
+                isTemp ? { source: Icon.Clock, tintColor: Color.Orange } : { source: Icon.Key, tintColor: Color.Green }
+              }
+              onAction={async () => {
+                const content = `{{${key}}}`;
+                await Clipboard.copy(content);
+                await showToast({
+                  style: Toast.Style.Success,
+                  title: "Copied Placeholder",
+                });
+              }}
+            />
+          );
+        })
       ) : (
         <Action title="No Variables in Scope" />
       )}
