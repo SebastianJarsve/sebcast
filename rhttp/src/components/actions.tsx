@@ -49,7 +49,7 @@ export function SelectEnvironmentMenu() {
   const currentEnvironment = allEnvironments.find((e) => e.id === currentEnvironmentId);
   return (
     <ActionPanel.Submenu
-      title="Select environment"
+      title="Select Environment"
       icon={Icon.Key}
       shortcut={{ modifiers: ["cmd", "shift"], key: "p" }}
     >
@@ -217,7 +217,7 @@ export function NewRequestFromCurlAction() {
   const { push } = useNavigation();
   return (
     <Action
-      title="New Request from cURL"
+      title="New Request from CURL"
       icon={Icon.Clipboard}
       onAction={async () => {
         if (!currentCollection) {

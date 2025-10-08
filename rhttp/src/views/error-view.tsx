@@ -22,7 +22,7 @@ ${error}
       markdown={markdown}
       actions={
         <ActionPanel>
-          <Action.CopyToClipboard title="Copy error message" content={markdown} />
+          <Action.CopyToClipboard title="Copy Error Message" content={markdown} />
         </ActionPanel>
       }
     />

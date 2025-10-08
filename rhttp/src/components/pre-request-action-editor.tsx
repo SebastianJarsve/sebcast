@@ -17,7 +17,7 @@ export function PreRequestActionsEditor({
   onActionsChange,
   onActiveIndexChange,
 }: PreRequestActionsEditorProps) {
-  function handleActionChange(index: number, field: keyof PreRequestAction, value: any) {
+  function handleActionChange(index: number, field: keyof PreRequestAction, value: string | boolean) {
     const newActions = [...actions];
     newActions[index] = { ...newActions[index], [field]: value };
     onActionsChange(newActions);

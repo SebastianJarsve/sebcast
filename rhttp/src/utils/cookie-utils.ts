@@ -13,7 +13,9 @@ export function parseCookie(rawCookie: string): ParsedCookie | null {
 
     const options: Record<string, string | boolean> = {};
     for (const part of parts) {
-      let [key, val] = part.split("=");
+      const parts = part.split("=");
+      let key = parts[0];
+      const val = parts[1];
       // Normalize key to lowercase to easily find it
       key = key.toLowerCase();
       // If there's no value, it's a flag like "HttpOnly"

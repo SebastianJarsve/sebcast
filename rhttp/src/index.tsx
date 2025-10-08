@@ -18,7 +18,6 @@ import { generateCurlCommand } from "./utils/curl-to-request";
 import { $cookies } from "./store/cookies";
 import { $history } from "./store/history";
 import { useEffect, useMemo, useState } from "react";
-import { PersistentAtom } from "@sebastianjarsve/persistent-atom/.";
 import { useRunRequest } from "./hooks/use-run-request";
 import { substitutePlaceholders } from "./utils/environment-utils";
 import { $collectionSortPreferences } from "./store/settings";
@@ -130,7 +129,7 @@ export function CollectionDropdown() {
   );
 }
 
-function useStoresReady(atoms: PersistentAtom<any>[]) {
+function useStoresReady(atoms: Array<{ ready: Promise<void> }>) {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -206,7 +205,7 @@ function RequestListItem({ request, currentCollection, collections }: RequestLis
         <ActionPanel>
           <Action.Push
             key={"edit-request"}
-            title="Open request"
+            title="Open Request"
             icon={Icon.ChevronRight}
             target={<RequestForm collectionId={currentCollection.id} request={request} />}
             shortcut={{ modifiers: ["cmd"], key: "e" }}
@@ -221,21 +220,21 @@ function RequestListItem({ request, currentCollection, collections }: RequestLis
             />
           ) : (
             <Action
-              title="Run request"
+              title="Run Request"
               icon={Icon.Bolt}
               shortcut={{ modifiers: ["cmd"], key: "o" }}
               onAction={() => run(request, currentCollection)}
             />
           )}
           <Action.CopyToClipboard
-            title="Copy as cURL"
+            title="Copy as CURL"
             icon={Icon.Terminal}
             content={generateCurlCommand(request, currentCollection)}
             shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
           />
           <CommonActions currentCollection={currentCollection} />
           <ActionPanel.Submenu
-            title="Move request to another collection"
+            title="Move Request to Another Collection"
             icon={Icon.Switch}
             shortcut={{ modifiers: ["cmd"], key: "m" }}
           >
@@ -302,13 +301,13 @@ export default function RequestList() {
 
     const requests = [...currentCollection.requests];
 
+    const methodOrder: Method[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "GRAPHQL"];
     switch (sortBy) {
       case SORT_OPTIONS.NAME_ASC:
         return requests.sort((a, b) => (a.title || a.url).localeCompare(b.title || b.url));
       case SORT_OPTIONS.NAME_DESC:
         return requests.sort((a, b) => (b.title || b.url).localeCompare(a.title || a.url));
       case SORT_OPTIONS.METHOD:
-        const methodOrder: Method[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "GRAPHQL"];
         return requests.sort((a, b) => methodOrder.indexOf(a.method) - methodOrder.indexOf(b.method));
       case SORT_OPTIONS.URL:
         return requests.sort((a, b) => a.url.localeCompare(b.url));

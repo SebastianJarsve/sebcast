@@ -58,9 +58,12 @@ export function substitutePlaceholders(
  * @param path The path string (e.g., "user.address.city").
  * @returns The found value or undefined if the path is invalid.
  */
-export function getValueByPath(obj: any, path: string): unknown {
-  return path.split(".").reduce((current, key) => {
+export function getValueByPath(obj: Record<string, unknown>, path: string): unknown {
+  return path.split(".").reduce<unknown>((current, key) => {
     // Use optional chaining to safely access nested properties
-    return current?.[key];
+    if (current != null && typeof current === "object" && key in current) {
+      return (current as Record<string, unknown>)[key];
+    }
+    return undefined;
   }, obj);
 }

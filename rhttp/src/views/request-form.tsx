@@ -1,5 +1,5 @@
 import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
-import { useMemo, useReducer, useState } from "react";
+import { useReducer, useState } from "react";
 import { NewRequest, Request, Method } from "~/types";
 import { $collections, $currentCollectionId, createRequest, updateRequest } from "~/store";
 import { COMMON_HEADER_KEYS, METHODS } from "~/constants";
@@ -20,7 +20,7 @@ interface RequestFormProps {
 }
 
 type FormAction =
-  | { type: "SET_FIELD"; payload: { field: keyof Request; value: any } }
+  | { type: "SET_FIELD"; payload: { field: keyof Request; value: unknown } }
   | { type: "SET_HEADERS"; payload: Request["headers"] }
   | { type: "SET_RESPONSE_ACTIONS"; payload: Request["responseActions"] }
   | { type: "ADD_HEADER" }

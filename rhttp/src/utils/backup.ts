@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs/promises";
 import { $collections } from "~/store";
 import z from "zod";
-import { collectionSchema, environmentsSchema, historySchema } from "~/types";
+import { Collection, collectionSchema, Environment, environmentsSchema, HistoryEntry, historySchema } from "~/types";
 import { $environments } from "~/store/environments";
 import { $history } from "~/store/history";
 
@@ -27,25 +27,21 @@ export async function backupAllData() {
   const timestamp = new Date().toISOString().replace(/:/g, "-");
   const backupDir = path.join(environment.supportPath, "backups", timestamp);
 
-  // Define the files and their corresponding stores and serializers
-  const backupTasks = [
-    {
-      atom: $collections,
-      serializer: (d: any) => JSON.stringify(z.array(collectionSchema).parse(d)),
-      path: path.join(backupDir, "collections.json"),
-    },
-    {
-      atom: $environments,
-      serializer: (d: any) => JSON.stringify(environmentsSchema.parse(d)),
-      path: path.join(backupDir, "environments.json"),
-    },
-    {
-      atom: $history,
-      serializer: (d: any) => JSON.stringify(historySchema.parse(d)),
-      path: path.join(backupDir, "history.json"),
-    },
-  ];
-
-  // Run all backup tasks in parallel for efficiency
-  await Promise.all(backupTasks.map((task) => exportAtomToFile(task.atom, task.serializer, task.path)));
+  await Promise.all([
+    exportAtomToFile(
+      $collections,
+      (d: Collection[]) => JSON.stringify(z.array(collectionSchema).parse(d)),
+      path.join(backupDir, "collections.json"),
+    ),
+    exportAtomToFile(
+      $environments,
+      (d: Environment[]) => JSON.stringify(environmentsSchema.parse(d)),
+      path.join(backupDir, "environments.json"),
+    ),
+    exportAtomToFile(
+      $history,
+      (d: HistoryEntry[]) => JSON.stringify(historySchema.parse(d)),
+      path.join(backupDir, "history.json"),
+    ),
+  ]);
 }

@@ -103,9 +103,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
         <List.EmptyView title="No History Found" description="Run some requests to see their history here." />
       ) : (
         history.map((entry: HistoryEntry) => {
-          const collectionName = !!entry.sourceRequestId
-            ? requestCollectionMap.get(entry.sourceRequestId)?.title
-            : null;
+          const collectionName = entry.sourceRequestId ? requestCollectionMap.get(entry.sourceRequestId)?.title : null;
 
           const date = new Date(entry.createdAt);
           // Find the environment object first
@@ -162,7 +160,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                   />
 
                   <Action
-                    title="Re-run Request"
+                    title="Re-Run Request"
                     icon={Icon.Bolt}
                     onAction={async () => {
                       const toast = await showToast({ style: Toast.Style.Animated, title: "Re-running request..." });

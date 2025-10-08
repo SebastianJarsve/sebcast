@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { persistentAtom } from "@sebastianjarsve/persistent-atom";
 import { createLocalStorageAdapter } from "@sebastianjarsve/persistent-atom/adapters";
-import { Environment, environmentSchema, environmentsSchema, Variable } from "../types";
+import { Environment, environmentsSchema, Variable } from "~/types";
 import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 
 export const $environments = persistentAtom<Environment[]>([], {
@@ -134,7 +134,7 @@ export async function saveVariable(environmentId: string, key: string, variableD
 export async function deleteVariable(environmentId: string, key: string) {
   const updated = $environments.get().map((env) => {
     if (env.id === environmentId) {
-      const { [key]: _, ...remainingVars } = env.variables;
+      const remainingVars = Object.fromEntries(Object.entries(env.variables).filter(([k]) => k !== key));
       return { ...env, variables: remainingVars };
     }
     return env;

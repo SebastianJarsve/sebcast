@@ -35,7 +35,7 @@ function CommonActions() {
         {/* Actions for the selected environment */}
         {currentEnvironment?.id && (
           <Action.Push
-            title="Add variable"
+            title="Add Variable"
             target={<VariableForm environmentId={currentEnvironment?.id} />}
             shortcut={{ modifiers: ["cmd"], key: "n" }}
             icon={Icon.PlusCircle}

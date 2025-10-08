@@ -117,14 +117,14 @@ const requestValidation = (data: z.infer<typeof baseRequestSchema>, ctx: z.Refin
   if (data.bodyType === "JSON" && data.body) {
     try {
       JSON.parse(data.body);
-    } catch (e) {
+    } catch {
       ctx.addIssue({ path: ["body"], code: "custom", message: "Must be a valid JSON string" });
     }
   }
   if (data.bodyType === "FORM_DATA" && data.body) {
     try {
       z.array(z.object({ key: z.string(), value: z.string() })).parse(JSON.parse(data.body));
-    } catch (e) {
+    } catch {
       ctx.addIssue({ path: ["body"], code: "custom", message: "Must be a valid JSON array of key-value pairs" });
     }
   }

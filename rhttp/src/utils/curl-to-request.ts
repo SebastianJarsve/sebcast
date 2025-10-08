@@ -88,7 +88,7 @@ export function generateCurlCommand(request: NewRequest, collection: Collection)
       if (queryString) {
         commandUrl += `?${queryString}`;
       }
-    } catch (e) {
+    } catch {
       // Silently ignore invalid JSON in params for cURL generation
     }
   }
@@ -122,7 +122,7 @@ export function generateCurlCommand(request: NewRequest, collection: Collection)
       // Escape single quotes in the final JSON string
       const gqlBody = JSON.stringify(gqlPayload).replace(/'/g, "'\\''");
       curl += ` \\\n  --data-raw '${gqlBody}'`;
-    } catch (e) {
+    } catch {
       /* ignore invalid JSON */
     }
   } else if (request.bodyType === "FORM_DATA" && finalBody) {
@@ -132,7 +132,7 @@ export function generateCurlCommand(request: NewRequest, collection: Collection)
         // Use the -F flag for each form data field
         curl += ` \\\n  -F '${pair.key}=${pair.value}'`;
       }
-    } catch (e) {
+    } catch {
       // Ignore if the body is not a valid JSON array of pairs
     }
   } else if (finalBody) {
