@@ -11,7 +11,7 @@
   "commands": [
     {
       "name": "index",
-      "title": "Raycast HTTP Client",
+      "title": "HTTP Client",
       "description": "Create and run HTTP requests with advanced features",
       "mode": "view"
     }

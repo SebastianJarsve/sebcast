@@ -1,4 +1,4 @@
-# RHTTP - HTTP Client for Raycast
+# rhttp - HTTP Client for Raycast
 
 A powerful HTTP client built for Raycast. Test APIs, manage environments, and chain requests - all without leaving your keyboard.
 
@@ -49,19 +49,9 @@ A powerful HTTP client built for Raycast. Test APIs, manage environments, and ch
 - **Open in editor** - View responses in your preferred editor
 - **Keyboard-first** - Every action has a shortcut
 
-## 🤝 Contributing
-
-Found a bug? Have a feature request?
-
-- Open an issue on GitHub
-- Reach out on Twitter
-- Join the Raycast community Slack
-
 ## 📄 License
 
-THE BEER-WARE LICENSE (Revision 42) - see LICENSE file for details.
-
-If you find this extension useful, you can buy me a beer! 🍺
+MIT License - see LICENSE file for details.
 
 ## 🙏 Acknowledgments
 
