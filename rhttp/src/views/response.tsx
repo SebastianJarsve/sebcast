@@ -115,7 +115,7 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
   return (
     <Detail
       markdown={getMarkdown()}
-      navigationTitle="JSON Response"
+      navigationTitle="Response"
       metadata={metadata}
       actions={
         <ActionPanel>
@@ -126,7 +126,7 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
             shortcut={{ modifiers: ["cmd"], key: "h" }}
           />
           {getTypeSpecificActions()}
-          <OpenInEditorAction responseBody={bodyString} />
+          <OpenInEditorAction responseBody={bodyString} fileType={responseType} />
           <Action.CopyToClipboard title="Copy Full Body" content={bodyString} />
           <Action.CopyToClipboard
             title="Copy Headers"

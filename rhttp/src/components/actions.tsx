@@ -217,8 +217,9 @@ export function NewRequestFromCurlAction() {
   const { push } = useNavigation();
   return (
     <Action
-      title="New Request from CURL"
+      title="New Request from cURL"
       icon={Icon.Clipboard}
+      shortcut={{ modifiers: ["cmd", "shift"], key: "u" }}
       onAction={async () => {
         if (!currentCollection) {
           await showToast({ style: Toast.Style.Failure, title: "No Collection Selected" });
@@ -250,9 +251,11 @@ export function NewRequestFromCurlAction() {
 export function OpenInEditorAction({
   responseBody,
   shortcut = Keyboard.Shortcut.Common.Open,
+  fileType = "json",
 }: {
   responseBody: string;
   shortcut?: Keyboard.Shortcut;
+  fileType?: string;
 }) {
   return (
     <Action
@@ -260,7 +263,7 @@ export function OpenInEditorAction({
       icon={Icon.Code}
       shortcut={shortcut}
       onAction={async () => {
-        const tempPath = path.join(os.tmpdir(), `response-${randomUUID()}.json`);
+        const tempPath = path.join(os.tmpdir(), `response-${randomUUID()}.${fileType}`);
         await fs.writeFile(tempPath, responseBody);
 
         // Get the editor name from your extension's preferences

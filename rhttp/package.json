@@ -5,9 +5,20 @@
   "description": "HTTP Client for Raycast",
   "icon": "icon.png",
   "author": "SebastianJarsve",
-  "categories": ["Developer Tools"],
+  "categories": [
+    "Developer Tools"
+  ],
   "license": "MIT",
-  "keywords": ["http", "api", "rest", "client", "postman", "insomnia", "testing", "developer"],
+  "keywords": [
+    "http",
+    "api",
+    "rest",
+    "client",
+    "postman",
+    "insomnia",
+    "testing",
+    "developer"
+  ],
   "commands": [
     {
       "name": "index",
