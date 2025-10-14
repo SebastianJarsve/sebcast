@@ -2,7 +2,7 @@ import { Action, ActionPanel, List, Icon, confirmAlert, showToast, Alert, Toast 
 import { $environments, $currentEnvironmentId, deleteVariable, deleteEnvironment } from "../store/environments";
 import { EnvironmentForm } from "./environment-form";
 import { VariableForm } from "./variable-form";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 import { GlobalActions } from "~/components/actions";
 import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 

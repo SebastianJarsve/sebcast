@@ -6,7 +6,7 @@ import { $collections, createCollection, updateCollection } from "../store";
 
 import { z } from "zod";
 import { ErrorDetail } from "./error-view";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 import { KeyValueEditor } from "../components/key-value-editor";
 import { COMMON_HEADER_KEYS } from "~/constants";
 import { CopyVariableAction, GlobalActions } from "~/components/actions";

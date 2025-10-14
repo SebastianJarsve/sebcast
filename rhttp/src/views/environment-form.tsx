@@ -1,7 +1,7 @@
 import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { useState } from "react";
 import { $environments, createEnvironment, updateEnvironment } from "../store/environments";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 
 interface EnvironmentFormProps {

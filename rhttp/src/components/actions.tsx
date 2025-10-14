@@ -19,7 +19,7 @@ import { ManageVariablesList } from "../views/manage-variables-list";
 import { HistoryView } from "../views/history-list-view";
 import { $collectionSortPreferences, $isHistoryEnabled } from "../store/settings";
 import { type Collection, newCollectionSchema } from "~/types";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 import { parseCurlToRequest } from "~/utils/curl-to-request";
 import { RequestForm } from "~/views/request-form";
 import { resolveVariables } from "~/utils";

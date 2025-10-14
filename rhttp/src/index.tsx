@@ -12,7 +12,7 @@ import { RequestForm } from "~/views/request-form";
 import { Collection, Method, Request } from "~/types";
 import { $currentEnvironmentId, $environments, initializeDefaultEnvironment } from "~/store/environments";
 import { CollectionActions, GlobalActions, NewRequestFromCurlAction, SortRequestsMenu } from "~/components/actions";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 import { DEFAULT_COLLECTION_NAME, METHODS, SORT_OPTIONS } from "~/constants";
 import { generateCurlCommand } from "./utils/curl-to-request";
 import { $cookies } from "./store/cookies";

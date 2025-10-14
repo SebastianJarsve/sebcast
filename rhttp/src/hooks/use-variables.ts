@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 import { $environments, $currentEnvironmentId } from "~/store/environments";
 import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 

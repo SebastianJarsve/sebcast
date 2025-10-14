@@ -1,29 +1,28 @@
 // src/store/environments.ts
 import { randomUUID } from "node:crypto";
-import { persistentAtom } from "@sebastianjarsve/persistent-atom";
-import { createLocalStorageAdapter } from "@sebastianjarsve/persistent-atom/adapters";
+import { createLocalStorageAdapter, persistentAtom } from "zod-persist";
 import { Environment, environmentsSchema, Variable } from "~/types";
+import { LocalStorage, showToast, Toast } from "@raycast/api";
 import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 
-export const $environments = persistentAtom<Environment[]>([], {
-  storage: createLocalStorageAdapter(),
+export const $environments = persistentAtom([], {
+  storage: createLocalStorageAdapter(LocalStorage),
   key: "env",
-  serialize: (data) => JSON.stringify(environmentsSchema.parse(data)),
-  deserialize: (raw) => {
-    let data: unknown;
-    try {
-      data = JSON.parse(raw);
-      return environmentsSchema.parse(data);
-    } catch (e) {
-      console.error(e);
-      return [];
-    }
+  schema: environmentsSchema,
+  onCorruption: (error) => {
+    console.error(error);
+    showToast({
+      style: Toast.Style.Failure,
+      title: "Failed to load environments",
+      message: "Data was corrupted. A backup was created and defaults have been restored.",
+    });
+    return [];
   },
 });
 
 // This will store the ID of the currently active environment
 export const $currentEnvironmentId = persistentAtom<string | null>(null, {
-  storage: createLocalStorageAdapter(),
+  storage: createLocalStorageAdapter(LocalStorage),
   key: "app-active-environment-id",
 });
 

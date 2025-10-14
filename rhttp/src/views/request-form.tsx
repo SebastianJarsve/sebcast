@@ -8,7 +8,7 @@ import { ErrorDetail } from "./error-view";
 import { randomUUID } from "crypto";
 import { ResponseActionsEditor } from "~/components/response-actions-editor";
 import { KeyValueEditor } from "~/components/key-value-editor";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 import { CopyVariableAction, GlobalActions } from "~/components/actions";
 import { $currentEnvironmentId, $environments } from "~/store/environments";
 import { useRunRequest } from "~/hooks/use-run-request";

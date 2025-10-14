@@ -1,7 +1,7 @@
 import { Action, ActionPanel, Alert, confirmAlert, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { $environments, saveVariable } from "../store/environments";
 import { Variable } from "~/types";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 
 interface VariableFormProps {
   environmentId: string;

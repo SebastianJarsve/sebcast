@@ -1,14 +1,14 @@
-import { persistentAtom } from "@sebastianjarsve/persistent-atom";
-import { createLocalStorageAdapter } from "@sebastianjarsve/persistent-atom/adapters";
+import { createLocalStorageAdapter, persistentAtom } from "zod-persist";
 import { SortOption } from "~/constants";
 import { createCacheAdapter } from "~/lib/adapters";
+import { LocalStorage } from "@raycast/api";
 
 /**
  * A global setting to enable or disable the request history log.
  * Defaults to `true` (enabled).
  */
 export const $isHistoryEnabled = persistentAtom<boolean>(true, {
-  storage: createLocalStorageAdapter(),
+  storage: createLocalStorageAdapter(LocalStorage),
   key: "settings-history-enabled",
 });
 

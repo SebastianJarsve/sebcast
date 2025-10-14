@@ -1,4 +1,3 @@
-// src/views/HistoryView.tsx
 import {
   Action,
   ActionPanel,
@@ -20,7 +19,7 @@ import axios from "axios";
 import { ErrorDetail } from "./error-view";
 import { z } from "zod";
 import { METHODS } from "../constants";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 import { useMemo } from "react";
 import { RequestForm } from "./request-form";
 import { $environments } from "~/store/environments";
