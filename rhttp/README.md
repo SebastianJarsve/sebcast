@@ -60,7 +60,7 @@ Built with:
 - [Raycast API](https://developers.raycast.com/)
 - [Axios](https://axios-http.com/)
 - [Zod](https://zod.dev/)
-- [@sebastianjarsve/persistent-atom](https://github.com/sebastianjarsve/persistent-atom)
+- [zod-persist](https://github.com/sebastianjarsve/zod-persist)
 
 ---
 
