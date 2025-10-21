@@ -227,7 +227,7 @@ function RequestListItem({ request, currentCollection, collections }: RequestLis
             />
           )}
           <Action.CopyToClipboard
-            title="Copy as CURL"
+            title="Copy as cURL"
             icon={Icon.Terminal}
             content={generateCurlCommand(request, currentCollection)}
             shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
