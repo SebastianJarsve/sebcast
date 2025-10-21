@@ -13,7 +13,7 @@ export function ErrorDetail({ error }: ErrorDetailProps) {
 We found some issues with the data you entered:
 
 \`\`\`json
-${error}
+${JSON.stringify(error, null, 2)}
 \`\`\`
 `;
 

@@ -187,6 +187,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                           statusText: response.statusText,
                           headers: response.headers as Record<string, string>,
                           body: response.data,
+                          requestUrl: entry.requestSnapshot.url,
                         };
 
                         push(

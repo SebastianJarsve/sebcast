@@ -119,6 +119,34 @@ function domainMatches(cookieDomain: string, requestDomain: string): boolean {
 }
 
 /**
+ * Checks if a request path matches a cookie path according to RFC 6265.
+ * A cookie path matches if:
+ * 1. The request path equals the cookie path (exact match)
+ * 2. The request path starts with the cookie path followed by "/" (prefix match)
+ *
+ * @param cookiePath - The path attribute from the cookie
+ * @param requestPath - The pathname of the request URL
+ * @returns true if the cookie should be sent with this request, false otherwise
+ *
+ * @example
+ * ```typescript
+ * pathMatches("/api", "/api")           // true - exact match
+ * pathMatches("/api", "/api/users")    // true - prefix match
+ * pathMatches("/api", "/api-other")    // false - not a valid prefix
+ * ```
+ */
+function pathMatches(cookiePath: string, requestPath: string): boolean {
+  // Exact match
+  if (cookiePath === requestPath) return true;
+
+  // Prefix match: requestPath must start with cookiePath + "/"
+  // This prevents "/api" from matching "/api-other"
+  if (requestPath.startsWith(cookiePath + "/")) return true;
+
+  return false;
+}
+
+/**
  * Gathers all relevant cookies from the store for an outgoing request.
  * @param finalUrl The full URL of the request.
  * @returns An object with a formatted `Cookie` header, or undefined if no cookies match.
@@ -145,9 +173,9 @@ export function prepareCookieHeader(finalUrl: string): { Cookie: string } | unde
           return; // Skip secure cookie on non-HTTPS request
         }
 
-        // Check path
+        // Check path - now using RFC 6265 compliant path matching
         const cookiePath = cookie.options.path || "/";
-        if (requestPath.startsWith(cookiePath)) {
+        if (pathMatches(cookiePath, requestPath)) {
           cookieString += `${cookie.cookieName}=${cookie.cookieValue}; `;
         }
       });

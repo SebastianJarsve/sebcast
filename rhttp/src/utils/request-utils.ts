@@ -98,7 +98,7 @@ async function processResponse(request: NewRequest, response: AxiosResponse) {
 
       if (typeof extractedValue === "string" || typeof extractedValue === "number") {
         if (action.storage === "ENVIRONMENT") {
-          saveVariableToActiveEnvironment(action.variableKey, String(extractedValue));
+          await saveVariableToActiveEnvironment(action.variableKey, String(extractedValue));
         }
       }
     }

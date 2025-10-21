@@ -1,3 +1,4 @@
+import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 import { $currentEnvironmentId, $environments } from "~/store/environments";
 
 /**
@@ -12,7 +13,7 @@ export function resolveVariables(): Record<string, string> {
     return {};
   }
 
-  const globalEnv = allEnvironments.find((e) => e.name === "Globals");
+  const globalEnv = allEnvironments.find((e) => e.name === GLOBAL_ENVIRONMENT_NAME);
   const activeEnv = allEnvironments.find((e) => e.id === activeId);
 
   const resolved: Record<string, string> = {};

@@ -1,11 +1,17 @@
-import { List, environment } from "@raycast/api";
+import { Detail, List, environment } from "@raycast/api";
 import { parseHelpMarkdown } from "~/utils/markdown-parser";
 import fs from "fs";
 import path from "path";
 
 export function HelpView() {
   // Read from assets directory
-  const helpContent = fs.readFileSync(path.join(environment.assetsPath, "help.md"), "utf-8");
+  let helpContent: string;
+  try {
+    helpContent = fs.readFileSync(path.join(environment.assetsPath, "help.md"), "utf-8");
+    // ...
+  } catch (error) {
+    return <Detail markdown="# Help\nHelp documentation not found." />;
+  }
 
   const sections = parseHelpMarkdown(helpContent);
 

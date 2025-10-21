@@ -55,7 +55,7 @@ export async function initializeDefaultEnvironment() {
 // --- INITIALIZATION ---
 
 // Run the initialization logic once when the app starts.
-initializeDefaultEnvironment();
+initializeDefaultEnvironment().catch(console.error);
 
 // --- ACTIONS ---
 
@@ -147,7 +147,7 @@ export async function deleteVariable(environmentId: string, key: string) {
  * @param key The key of the variable.
  * @param value The value to save.
  */
-export function saveVariableToActiveEnvironment(key: string, value: string) {
+export async function saveVariableToActiveEnvironment(key: string, value: string) {
   const activeId = $currentEnvironmentId.get();
   if (!activeId) {
     return;
@@ -159,5 +159,5 @@ export function saveVariableToActiveEnvironment(key: string, value: string) {
     isSecret: false,
   };
 
-  saveVariable(activeId, key, variableData);
+  await saveVariable(activeId, key, variableData);
 }

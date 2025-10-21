@@ -1,6 +1,7 @@
 // src/utils.ts
-import { NewRequest, Headers, Collection } from "~/types";
+import { NewRequest, Headers, Collection, newRequestSchema } from "~/types";
 import { prepareRequest, resolveVariables } from ".";
+import { z } from "zod";
 
 /**
  * Parses a cURL command string and converts it into a NewRequest object.
@@ -14,11 +15,11 @@ export function parseCurlToRequest(curl: string): NewRequest | null {
     // The URL is typically the last argument that doesn't start with a hyphen.
     // This regex finds all quoted strings or standalone words.
     const urlMatch = curl.match(/'(https?:\/\/[^']+|[^']+)'|"(https?:\/\/[^"]+|[^"]+)"|(\S+)/g);
-    const url = urlMatch?.find((u) => u.includes("http") || u.startsWith("'http"))?.replace(/['"]/g, "") ?? "";
+    const url = urlMatch?.find((u) => u.includes("http") || u.startsWith("'http"))?.replace(/['\"]/g, "") ?? "";
 
     // Find the method flag (-X or --request) and capture the next word.
     const methodMatch = curl.match(/-X\s*(\w+)|--request\s*(\w+)/);
-    const method = (methodMatch ? methodMatch[1] || methodMatch[2] : "GET").toUpperCase() as NewRequest["method"];
+    const method = (methodMatch ? methodMatch[1] || methodMatch[2] : "GET").toUpperCase();
 
     // Find all header flags (-H) and their values. The 'g' flag finds all occurrences.
     const headers: Headers = [];
@@ -50,15 +51,19 @@ export function parseCurlToRequest(curl: string): NewRequest | null {
       params = JSON.stringify(Object.fromEntries(searchParams.entries()));
     }
 
-    // Assemble the final NewRequest object.
-    const newRequest: NewRequest = {
+    // Assemble the raw parsed data
+    const rawParsedData = {
       url: requestUrl,
-      method,
+      method: method,
       headers,
       body,
       bodyType,
       params: method === "GET" ? params : undefined,
     };
+
+    // ✅ Validate the entire request against the Zod schema
+    // This will catch any invalid data and provide clear error messages
+    const newRequest = newRequestSchema.parse(rawParsedData);
 
     return newRequest;
   } catch (error) {
