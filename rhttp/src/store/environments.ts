@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { createLocalStorageAdapter, persistentAtom } from "zod-persist";
 import { Environment, environmentsSchema, Variable } from "~/types";
 import { LocalStorage, showToast, Toast } from "@raycast/api";
-import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 
 export const $environments = persistentAtom([], {
   storage: createLocalStorageAdapter(LocalStorage),
@@ -27,28 +26,21 @@ export const $currentEnvironmentId = persistentAtom<string | null>(null, {
 });
 
 /**
- * Creates the default "Global" environment object.
- */
-function createGlobalEnvironmentObject(): Environment {
-  return {
-    id: randomUUID(),
-    name: GLOBAL_ENVIRONMENT_NAME,
-    variables: {},
-  };
-}
-
-/**
  * Checks if the environment store is empty on startup and creates
- * a default "Globals" environment if needed.
+ * a default "default" environment if needed.
  */
 export async function initializeDefaultEnvironment() {
   await $environments.ready;
   const environments = $environments.get();
 
   if (environments.length === 0) {
-    const globalEnv = createGlobalEnvironmentObject();
-    $environments.set([globalEnv]);
-    $currentEnvironmentId.set(globalEnv.id); // Automatically select it
+    const defaultEnv = {
+      id: randomUUID(),
+      name: "default",
+      variables: {},
+    };
+    $environments.set([defaultEnv]);
+    $currentEnvironmentId.set(defaultEnv.id); // Automatically select it
   }
 }
 

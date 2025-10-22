@@ -1,4 +1,3 @@
-import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 import { $currentEnvironmentId, $environments } from "~/store/environments";
 
 /**
@@ -13,19 +12,15 @@ export function resolveVariables(): Record<string, string> {
     return {};
   }
 
-  const globalEnv = allEnvironments.find((e) => e.name === GLOBAL_ENVIRONMENT_NAME);
   const activeEnv = allEnvironments.find((e) => e.id === activeId);
 
   const resolved: Record<string, string> = {};
 
-  // 1. Add all global variables first.
-  if (globalEnv) {
-    for (const [key, variable] of Object.entries(globalEnv.variables)) {
-      resolved[key] = variable.value;
-    }
+  if (!activeEnv) {
+    return {}; // ✅ No active environment = no variables
   }
 
-  // 2. Add active environment variables, overwriting globals with the same key.
+  // Add active environment variables, overwriting globals with the same key.
   if (activeEnv) {
     for (const [key, variable] of Object.entries(activeEnv.variables)) {
       resolved[key] = variable.value;

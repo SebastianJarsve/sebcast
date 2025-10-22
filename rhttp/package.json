@@ -2,12 +2,13 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "rhttp",
   "title": "rhttp",
-  "description": "HTTP Client for Raycast",
+  "version": "1.0.0",
+  "description": "Full-featured HTTP client with environments, variables, and request chaining",
   "icon": "icon.png",
   "author": "SebastianJarsve",
   "categories": ["Developer Tools"],
   "license": "MIT",
-  "keywords": ["http", "api", "rest", "client", "postman", "insomnia", "testing", "developer"],
+  "keywords": ["http", "api", "rest", "graphql", "postman", "insomnia", "curl", "request", "developer"],
   "commands": [
     {
       "name": "index",
@@ -50,8 +51,8 @@
   },
   "devDependencies": {
     "@raycast/eslint-config": "^2.0.4",
+    "@types/react": "^19.2.2",
     "@types/node": "24.5.2",
-    "@types/react": "19.1.13",
     "eslint": "^9.35.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.2"
