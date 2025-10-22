@@ -1,4 +1,15 @@
-import { Action, ActionPanel, Alert, confirmAlert, Icon, Keyboard, List, showToast, Toast } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Alert,
+  Clipboard,
+  confirmAlert,
+  Icon,
+  Keyboard,
+  List,
+  showToast,
+  Toast,
+} from "@raycast/api";
 import {
   $collections,
   $currentCollectionId,
@@ -221,12 +232,40 @@ function RequestListItem({ request, currentCollection, collections }: RequestLis
           ) : (
             <Action title="Run Request" icon={Icon.Bolt} onAction={() => run(request, currentCollection)} />
           )}
-          <Action.CopyToClipboard
+          <Action
             title="Copy as cURL"
             icon={Icon.Terminal}
-            content={generateCurlCommand(request, currentCollection)}
+            onAction={async () => {
+              const { command, hasTempVars } = generateCurlCommand(request, currentCollection);
+
+              if (hasTempVars) {
+                const shouldCopy = await confirmAlert({
+                  title: "Contains Temporary Variables",
+                  message:
+                    "This cURL command contains temporary variables from pre-request actions, which can't be used in standalone cURL. Environment variables will work fine.",
+                  primaryAction: { title: "Copy Anyway", style: Alert.ActionStyle.Default },
+                  dismissAction: { title: "Cancel" },
+                });
+
+                if (shouldCopy) {
+                  await Clipboard.copy(command);
+                  await showToast({
+                    style: Toast.Style.Success,
+                    title: "Copied to Clipboard",
+                    message: "Replace temporary variables manually",
+                  });
+                }
+              } else {
+                await Clipboard.copy(command);
+                await showToast({
+                  style: Toast.Style.Success,
+                  title: "Copied to Clipboard",
+                });
+              }
+            }}
             shortcut={Keyboard.Shortcut.Common.Copy}
           />
+
           <CommonActions currentCollection={currentCollection} />
           <ActionPanel.Submenu
             title="Move Request to Another Collection"

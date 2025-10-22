@@ -20,9 +20,9 @@ export function parseCurlToRequest(curl: string): NewRequest | null {
     const methodMatch = curl.match(/-X\s*(\w+)|--request\s*(\w+)/);
     const method = (methodMatch ? methodMatch[1] || methodMatch[2] : "GET").toUpperCase();
 
-    // Find all header flags (-H) and their values. The 'g' flag finds all occurrences.
+    // Find all header flags (-H or --header) and their values. The 'g' flag finds all occurrences.
     const headers: Headers = [];
-    const headerRegex = /-H\s*'([^']*)'|-H\s*"([^"]*)"/g;
+    const headerRegex = /(?:-H|--header)\s+['"]([^'"]+)['"]/g;
     let headerMatch;
     while ((headerMatch = headerRegex.exec(curl)) !== null) {
       const headerString = headerMatch[1] || headerMatch[2];
@@ -74,7 +74,10 @@ export function parseCurlToRequest(curl: string): NewRequest | null {
 /**
  * Converts a request object into a cURL command string.
  */
-export function generateCurlCommand(request: NewRequest, collection: Collection): string {
+export function generateCurlCommand(
+  request: NewRequest,
+  collection: Collection,
+): { command: string; hasTempVars: boolean } {
   const variables = resolveVariables();
   const { finalUrl, finalHeaders, finalBody, finalParams, finalGqlQuery, finalGqlVariables } = prepareRequest(
     request,
@@ -143,5 +146,7 @@ export function generateCurlCommand(request: NewRequest, collection: Collection)
     // The existing logic for raw/JSON bodies
     curl += ` \\\n  --data-raw '${finalBody}'`;
   }
-  return curl;
+  const hasTempVars = /\{\{[^}]+\}\}/.test(curl);
+
+  return { command: curl, hasTempVars };
 }

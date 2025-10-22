@@ -158,7 +158,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
             }}
           />
 
-          <CopyVariableAction />
+          <CopyVariableAction currentRequestPreActions={dirtyRequest.preRequestActions} />
 
           <ActionPanel.Section title="Form Actions">
             <Action

@@ -173,22 +173,37 @@ export function CollectionActions({ children }: { children?: JSX.Element | JSX.E
   );
 }
 
-export function CopyVariableAction() {
+export function CopyVariableAction({
+  currentRequestPreActions,
+}: {
+  currentRequestPreActions?: Array<{ requestId: string; enabled: boolean }>;
+} = {}) {
   const resolvedVariables = resolveVariables();
   const { value: collections } = useAtom($collections);
   const { value: currentCollectionId } = useAtom($currentCollectionId);
 
   const currentCollection = collections.find((c) => c.id === currentCollectionId);
 
-  // Get all potential temp variables from response actions
+  // Get temp variable keys based on pre-request actions
   const tempVariableKeys = new Set<string>();
-  currentCollection?.requests.forEach((request) => {
-    request.responseActions?.forEach((action) => {
-      if (action.storage === "TEMPORARY") {
-        tempVariableKeys.add(action.variableKey);
+
+  if (currentRequestPreActions && currentRequestPreActions.length > 0) {
+    // Only show temp vars from requests that are in the pre-request chain
+    const preRequestIds = new Set(
+      currentRequestPreActions.filter((action) => action.enabled).map((action) => action.requestId),
+    );
+
+    currentCollection?.requests.forEach((request) => {
+      // Only include temp vars from requests that are pre-request actions
+      if (preRequestIds.has(request.id)) {
+        request.responseActions?.forEach((action) => {
+          if (action.storage === "TEMPORARY") {
+            tempVariableKeys.add(action.variableKey);
+          }
+        });
       }
     });
-  });
+  }
 
   const allKeys = [...Object.keys(resolvedVariables), ...Array.from(tempVariableKeys)];
 
@@ -204,6 +219,7 @@ export function CopyVariableAction() {
       {allKeys.length > 0 ? (
         allKeys.map((key) => {
           const isTemp = tempVariableKeys.has(key);
+
           return (
             <Action
               key={key}
