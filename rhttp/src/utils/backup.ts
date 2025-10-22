@@ -35,7 +35,19 @@ export async function backupAllData() {
     ),
     exportAtomToFile(
       $environments,
-      (d: Environment[]) => JSON.stringify(environmentsSchema.parse(d)),
+      (d: Environment[]) => {
+        // Remove secret values for security reasons
+        const sanitized = d.map((env) => ({
+          ...env,
+          variables: Object.fromEntries(
+            Object.entries(env.variables).map(([key, variable]) => [
+              key,
+              variable.isSecret ? { ...variable, value: "" } : variable,
+            ]),
+          ),
+        }));
+        return JSON.stringify(environmentsSchema.parse(sanitized));
+      },
       path.join(backupDir, "environments.json"),
     ),
     exportAtomToFile(
