@@ -223,10 +223,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         </ActionPanel>
       }
     >
-      <Form.Description
-        title={`Collection: ${currentCollection?.title ?? "Unknown"}`}
-        text={`Environment: ${currentEnvironment?.name ?? "None"}`}
-      />
+      <Form.Description text={`Collection: ${currentCollection?.title ?? "Unknown"}`} />
       <Form.Dropdown
         id="method"
         title="HTTP Method"
