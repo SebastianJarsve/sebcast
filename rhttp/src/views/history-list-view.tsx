@@ -9,6 +9,7 @@ import {
   showToast,
   Toast,
   useNavigation,
+  Keyboard,
 } from "@raycast/api";
 import { $history, deleteHistoryEntry, clearHistory } from "../store/history";
 import { runRequest } from "../utils";
@@ -46,7 +47,10 @@ function CommonActions() {
       title="Clear All History"
       icon={Icon.Trash}
       style={Action.Style.Destructive}
-      shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
+      shortcut={{
+        macOS: { modifiers: ["cmd", "shift"], key: "x" },
+        windows: { modifiers: ["ctrl", "shift"], key: "x" },
+      }}
       onAction={async () => {
         if (
           await confirmAlert({
@@ -206,6 +210,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                               sourceRequestId={entry.sourceRequestId}
                               requestSnapshot={entry.requestSnapshot}
                               response={{
+                                requestUrl: entry.requestSnapshot.url,
                                 requestMethod: entry.requestSnapshot.method,
                                 status: error.response.status,
                                 statusText: error.response.statusText,
@@ -238,7 +243,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                     title="Delete Entry"
                     icon={Icon.Trash}
                     style={Action.Style.Destructive}
-                    shortcut={{ modifiers: ["ctrl"], key: "x" }}
+                    shortcut={Keyboard.Shortcut.Common.Remove}
                     onAction={async () => {
                       if (
                         await confirmAlert({

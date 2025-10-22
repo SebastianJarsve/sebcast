@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
+import { Action, ActionPanel, Form, Icon, Keyboard, showToast, Toast, useNavigation } from "@raycast/api";
 import { useReducer, useState } from "react";
 import { NewRequest, Request, Method } from "~/types";
 import { $collections, $currentCollectionId, createRequest, updateRequest } from "~/store";
@@ -152,7 +152,10 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
             title="Save Request"
             icon={Icon.HardDrive}
             onAction={handleSave}
-            shortcut={{ modifiers: ["cmd"], key: "s" }}
+            shortcut={{
+              macOS: { modifiers: ["cmd"], key: "s" },
+              windows: { modifiers: ["ctrl"], key: "s" },
+            }}
           />
 
           <CopyVariableAction />
@@ -161,9 +164,8 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
             <Action
               title="Add Header"
               icon={Icon.Plus}
-              // onAction={() => setDirtyRequest((old) => ({ ...old, headers: [...old.headers, { key: "", value: "" }] }))}
               onAction={() => dispatch({ type: "ADD_HEADER" })}
-              shortcut={{ modifiers: ["cmd"], key: "h" }}
+              shortcut={{ macOS: { modifiers: ["cmd"], key: "h" }, windows: { modifiers: ["ctrl"], key: "h" } }}
             />
             {activeHeaderIndex !== null && (
               <Action
@@ -176,14 +178,14 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                   setActiveHeaderIndex(null);
                   showToast({ style: Toast.Style.Success, title: "Header Removed" });
                 }}
-                shortcut={{ modifiers: ["ctrl"], key: "h" }}
+                shortcut={{ macOS: { modifiers: ["ctrl"], key: "h" }, windows: { modifiers: ["alt"], key: "h" } }}
               />
             )}
             <Action
               title="Add Response Action"
               icon={Icon.Plus}
               onAction={() => dispatch({ type: "ADD_RESPONSE_ACTION" })}
-              shortcut={{ modifiers: ["opt"], key: "r" }}
+              shortcut={{ macOS: { modifiers: ["opt"], key: "r" }, windows: { modifiers: ["alt"], key: "r" } }}
             />
             {activeActionIndex !== null && (
               <Action
@@ -194,14 +196,14 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                   dispatch({ type: "REMOVE_RESPONSE_ACTION", payload: { index: activeActionIndex } });
                   showToast({ style: Toast.Style.Success, title: "Action Removed" });
                 }}
-                shortcut={{ modifiers: ["ctrl"], key: "r" }}
+                shortcut={{ macOS: { modifiers: ["ctrl"], key: "r" }, windows: { modifiers: ["ctrl"], key: "r" } }}
               />
             )}
             <Action
               title="Add Pre-Request Action"
               icon={Icon.Plus}
               onAction={() => dispatch({ type: "ADD_PRE_REQUEST_ACTION" })}
-              shortcut={{ modifiers: ["opt"], key: "p" }}
+              shortcut={{ macOS: { modifiers: ["opt"], key: "p" }, windows: { modifiers: ["alt"], key: "p" } }}
             />
             {activePreRequestIndex !== null && (
               <Action
@@ -213,7 +215,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                   setActivePreRequestIndex(null);
                   showToast({ style: Toast.Style.Success, title: "Pre-Request Action Removed" });
                 }}
-                shortcut={{ modifiers: ["ctrl"], key: "p" }}
+                shortcut={{ macOS: { modifiers: ["ctrl"], key: "p" }, windows: { modifiers: ["ctrl"], key: "p" } }}
               />
             )}
           </ActionPanel.Section>

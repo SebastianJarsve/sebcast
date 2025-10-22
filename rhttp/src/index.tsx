@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Alert, confirmAlert, Icon, List, showToast, Toast } from "@raycast/api";
+import { Action, ActionPanel, Alert, confirmAlert, Icon, Keyboard, List, showToast, Toast } from "@raycast/api";
 import {
   $collections,
   $currentCollectionId,
@@ -39,7 +39,8 @@ function CommonActions({ currentCollection }: { currentCollection: Collection | 
         <Action.Push
           key={"new-request"}
           title="New Request"
-          shortcut={{ modifiers: ["cmd"], key: "n" }}
+          shortcut={Keyboard.Shortcut.Common.New}
+          // shortcut={{ modifiers: ["cmd"], key: "n" }}
           target={<RequestForm collectionId={currentCollection.id} request={{}} />}
           icon={Icon.PlusCircle}
         />
@@ -60,20 +61,26 @@ function CommonActions({ currentCollection }: { currentCollection: Collection | 
       )}
 
       <CollectionActions>
-        {currentCollection && currentCollection.title !== DEFAULT_COLLECTION_NAME && (
+        {currentCollection && currentCollection.title !== DEFAULT_COLLECTION_NAME ? (
           <Action.Push
             key={"edit-request"}
             title="Edit Collection"
-            shortcut={{ modifiers: ["cmd", "shift"], key: "e" }}
+            shortcut={{
+              macOS: { modifiers: ["cmd", "shift"], key: "e" },
+              windows: { modifiers: ["ctrl", "shift"], key: "e" },
+            }}
             target={<CollectionForm collectionId={currentCollection.id} />}
             icon={Icon.Pencil}
           />
-        )}
+        ) : null}
       </CollectionActions>
       <Action.Push
         key={"create-request"}
         title="Create Collection"
-        shortcut={{ modifiers: ["cmd", "shift"], key: "n" }}
+        shortcut={{
+          macOS: { modifiers: ["cmd", "shift"], key: "n" },
+          windows: { modifiers: ["ctrl", "shift"], key: "n" },
+        }}
         target={<CollectionForm />}
         icon={Icon.PlusTopRightSquare}
       />
@@ -82,7 +89,7 @@ function CommonActions({ currentCollection }: { currentCollection: Collection | 
           title="Delete Collection"
           icon={Icon.Trash}
           style={Action.Style.Destructive}
-          shortcut={{ modifiers: ["cmd", "shift"], key: "delete" }}
+          shortcut={Keyboard.Shortcut.Common.RemoveAll}
           onAction={async () => {
             if (
               await confirmAlert({
@@ -208,35 +215,23 @@ function RequestListItem({ request, currentCollection, collections }: RequestLis
             title="Open Request"
             icon={Icon.ChevronRight}
             target={<RequestForm collectionId={currentCollection.id} request={request} />}
-            shortcut={{ modifiers: ["cmd"], key: "e" }}
           />
           {isLoading ? (
-            <Action
-              title="Cancel Request"
-              icon={Icon.XMarkCircle}
-              onAction={cancel}
-              style={Action.Style.Destructive}
-              shortcut={{ modifiers: ["cmd"], key: "o" }}
-            />
+            <Action title="Cancel Request" icon={Icon.XMarkCircle} onAction={cancel} style={Action.Style.Destructive} />
           ) : (
-            <Action
-              title="Run Request"
-              icon={Icon.Bolt}
-              shortcut={{ modifiers: ["cmd"], key: "o" }}
-              onAction={() => run(request, currentCollection)}
-            />
+            <Action title="Run Request" icon={Icon.Bolt} onAction={() => run(request, currentCollection)} />
           )}
           <Action.CopyToClipboard
             title="Copy as cURL"
             icon={Icon.Terminal}
             content={generateCurlCommand(request, currentCollection)}
-            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+            shortcut={Keyboard.Shortcut.Common.Copy}
           />
           <CommonActions currentCollection={currentCollection} />
           <ActionPanel.Submenu
             title="Move Request to Another Collection"
             icon={Icon.Switch}
-            shortcut={{ modifiers: ["cmd"], key: "m" }}
+            shortcut={{ macOS: { modifiers: ["cmd"], key: "m" }, windows: { modifiers: ["ctrl"], key: "m" } }}
           >
             {collections.map((c) => (
               <Action
@@ -250,7 +245,7 @@ function RequestListItem({ request, currentCollection, collections }: RequestLis
             title="Delete Request"
             icon={Icon.Trash}
             style={Action.Style.Destructive}
-            shortcut={{ modifiers: ["ctrl"], key: "x" }}
+            shortcut={Keyboard.Shortcut.Common.Remove}
             onAction={async () => {
               if (
                 await confirmAlert({
@@ -323,7 +318,7 @@ export default function RequestList() {
   return (
     <List
       isLoading={!isReady || isLoading}
-      navigationTitle={`${currentEnvironment?.name}`}
+      navigationTitle={`${currentEnvironment?.name ? currentEnvironment.name : environments.length === 0 ? "rhttp" : "No environments selected"}`}
       searchBarPlaceholder="Search requests..."
       searchBarAccessory={<CollectionDropdown />}
       actions={

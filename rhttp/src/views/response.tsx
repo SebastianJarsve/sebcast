@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Detail, Icon, open, showToast } from "@raycast/api";
+import { Action, ActionPanel, Color, Detail, Icon, Keyboard, open, showToast } from "@raycast/api";
 import { randomUUID } from "crypto";
 import fs from "fs/promises";
 import path from "path";
@@ -123,15 +123,18 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
             title={showHeaders ? "Show Body" : "Show Headers"}
             icon={showHeaders ? Icon.Code : Icon.List}
             onAction={() => setShowHeaders(!showHeaders)}
-            shortcut={{ modifiers: ["cmd"], key: "h" }}
           />
           {getTypeSpecificActions()}
           <OpenInEditorAction responseBody={bodyString} fileType={responseType} />
-          <Action.CopyToClipboard title="Copy Full Body" content={bodyString} />
+          <Action.CopyToClipboard
+            title="Copy Full Body"
+            content={bodyString}
+            shortcut={Keyboard.Shortcut.Common.Copy}
+          />
           <Action.CopyToClipboard
             title="Copy Headers"
             content={JSON.stringify(response.headers, null, 2)}
-            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+            shortcut={Keyboard.Shortcut.Common.CopyPath}
           />
           <Action
             title="Save to History"

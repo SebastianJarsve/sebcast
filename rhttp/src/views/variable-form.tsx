@@ -54,7 +54,10 @@ export function VariableForm({ environmentId, variableKey }: VariableFormProps) 
             title="Save Variable"
             icon={Icon.HardDrive}
             onSubmit={handleSubmit}
-            shortcut={{ modifiers: ["cmd"], key: "s" }}
+            shortcut={{
+              macOS: { modifiers: ["cmd"], key: "s" },
+              windows: { modifiers: ["ctrl"], key: "s" },
+            }}
           />
         </ActionPanel>
       }

@@ -1,4 +1,3 @@
-// CollectionForm.tsx
 import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { useState } from "react";
 import { Collection, NewCollection, Headers } from "../types";
@@ -71,16 +70,21 @@ export function CollectionForm({ collectionId }: CollectionFormProps) {
           <Action.SubmitForm
             title="Save Collection"
             icon={Icon.HardDrive}
-            shortcut={{ modifiers: ["cmd"], key: "s" }}
+            shortcut={{
+              macOS: { modifiers: ["cmd"], key: "s" },
+              windows: { modifiers: ["ctrl"], key: "s" },
+            }}
             onSubmit={handleSubmit}
           />
           <Action
             title="Add Header"
             icon={Icon.Plus}
             onAction={() => setHeaders([...headers, { key: "", value: "" }])}
-            shortcut={{ modifiers: ["cmd"], key: "h" }}
+            shortcut={{
+              macOS: { modifiers: ["cmd"], key: "h" },
+              windows: { modifiers: ["ctrl"], key: "h" },
+            }}
           />
-          {/* --- 3. The new "Remove Header" action --- */}
           {activeIndex !== null && (
             <Action
               title="Remove Header"
@@ -92,7 +96,10 @@ export function CollectionForm({ collectionId }: CollectionFormProps) {
                 setActiveIndex(null);
                 showToast({ style: Toast.Style.Success, title: "Header Removed" });
               }}
-              shortcut={{ modifiers: ["ctrl"], key: "h" }}
+              shortcut={{
+                macOS: { modifiers: ["ctrl"], key: "h" },
+                windows: { modifiers: ["alt"], key: "h" },
+              }}
             />
           )}
           <CopyVariableAction />
