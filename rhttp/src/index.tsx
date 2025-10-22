@@ -217,26 +217,9 @@ function RequestListItem({ request, currentCollection, collections }: RequestLis
             target={<RequestForm collectionId={currentCollection.id} request={request} />}
           />
           {isLoading ? (
-            <Action
-              title="Cancel Request"
-              icon={Icon.XMarkCircle}
-              onAction={cancel}
-              style={Action.Style.Destructive}
-              shortcut={{
-                macOS: { modifiers: ["cmd", "shift"], key: "enter" },
-                windows: { modifiers: ["ctrl", "shift"], key: "enter" },
-              }}
-            />
+            <Action title="Cancel Request" icon={Icon.XMarkCircle} onAction={cancel} style={Action.Style.Destructive} />
           ) : (
-            <Action
-              title="Run Request"
-              icon={Icon.Bolt}
-              onAction={() => run(request, currentCollection)}
-              shortcut={{
-                macOS: { modifiers: ["cmd", "shift"], key: "enter" },
-                windows: { modifiers: ["ctrl", "shift"], key: "enter" },
-              }}
-            />
+            <Action title="Run Request" icon={Icon.Bolt} onAction={() => run(request, currentCollection)} />
           )}
           <Action.CopyToClipboard
             title="Copy as cURL"
