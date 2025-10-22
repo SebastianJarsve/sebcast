@@ -1,7 +1,7 @@
 import { environment } from "@raycast/api";
-import { createFileAdapter, type StorageAdapter } from "@sebastianjarsve/persistent-atom/adapters";
 import { Cache } from "@raycast/api";
 import path from "path";
+import { createFileAdapter, type StorageAdapter } from "zod-persist";
 
 export function createRaycastFileAdapter(fileName: string) {
   const filePath = path.join(environment.supportPath, fileName);

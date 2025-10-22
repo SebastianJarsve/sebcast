@@ -25,41 +25,48 @@ Variables let you reuse values across requests.
 
 Use double curly braces: `{{variableName}}`
 
+**Works in:**
+
+- Request title
+- URL/Path
+- Headers (both keys and values)
+- Request body (JSON or Form Data)
+- Query parameters (GET requests)
+- GraphQL queries
+- GraphQL variables
+
 **Example:**
 
 ```
-URL: {{baseUrl}}/users
-Header: Authorization: Bearer {{apiToken}}
+Title: Get User {{userId}}
+URL: {{baseUrl}}/users/{{userId}}
+Header Key: {{headerName}}
+Header Value: Bearer {{apiToken}}
+Body: {"name": "{{userName}}", "email": "{{userEmail}}"}
+GraphQL Query: query { user(id: "{{userId}}") { name } }
+GraphQL Variables: {"id": "{{userId}}"}
 ```
 
-### Global vs Environment Variables
+**Tip:** Press `Cmd+Shift+I` to see all available variables and copy their placeholders. This includes environment variables and temporary variables from pre-request actions!
 
-- **Globals** - Available in all environments
-- **Environment-specific** - Override globals per environment
+### Variable Types
 
-## Pre-Request Actions
+**Environment Variables:**
 
-Run requests before another request (e.g., login first).
+- Stored in specific environments
+- Persistent across sessions
+- Created manually in "Manage Environments" or automatically via Response Actions
 
-### Example: Authentication Flow
+**Temporary Variables:**
 
-**1. Login Request**
+- Created by Response Actions during request chains
+- Only exist during that request chain
+- Automatically cleared after chain completes
+- Perfect for auth tokens in multi-step flows
 
-- POST `/auth/login`
-- Response Action: Extract `token` → save to `authToken` (TEMPORARY)
+### Environment Variables
 
-**2. Get Profile Request**
-
-- GET `/user/profile`
-- Header: `Authorization: Bearer {{authToken}}`
-- **Pre-Request:** ✓ Run "Login Request"
-
-Now when you run "Get Profile", it automatically logs in first!
-
-### Storage Options
-
-- **TEMPORARY** - Only during request chain (recommended for tokens)
-- **ENVIRONMENT** - Saved permanently
+Each environment has its own set of variables. Switch environments to use different values for the same variable names (e.g., different `baseUrl` for Dev vs Production).
 
 # Features
 
@@ -82,11 +89,26 @@ Extract data from responses to use in other requests.
 - Store pagination cursors
 - Save API response data
 
-## Request Chaining
+## Pre-Request Actions & Request Chaining
 
-Combine Pre-Request Actions + Response Actions for complex workflows.
+Run requests before another request to set up data or authentication.
 
-### Example: Multi-Step Flow
+### Simple Example: Authentication
+
+**1. Login Request**
+
+- POST `/auth/login`
+- Response Action: Extract `token` → save to `authToken` (TEMPORARY)
+
+**2. Get Profile Request**
+
+- GET `/user/profile`
+- Header: `Authorization: Bearer {{authToken}}`
+- **Pre-Request:** ✓ Run "Login Request"
+
+Now when you run "Get Profile", it automatically logs in first!
+
+### Advanced Example: Multi-Step Flow
 
 **Request 1: Login**
 
@@ -106,12 +128,132 @@ Combine Pre-Request Actions + Response Actions for complex workflows.
 
 Run Request 3 → automatically runs 1, then 2, then 3! 🎯
 
+### Storage Options
+
+- **TEMPORARY** - Only during request chain (recommended for tokens)
+- **ENVIRONMENT** - Saved permanently
+
+## Collection-Level Headers
+
+Apply headers to ALL requests in a collection automatically.
+
+**Setup:**
+
+1. Edit a collection (`Cmd+Shift+E`)
+2. Add headers (e.g., `Authorization`, `Content-Type`)
+3. These headers are automatically added to every request
+
+**Use Cases:**
+
+- API keys that apply to all endpoints
+- Common headers like `Content-Type: application/json`
+
+**Note:** Request-level headers override collection headers with the same key.
+
+## Request Body Types
+
+Choose the right body type for your request.
+
+**JSON Body:**
+
+- Most common for REST APIs
+- Automatically sets `Content-Type: application/json`
+- Example: `{"name": "John", "email": "john@example.com"}`
+
+**Form Data:**
+
+- For file uploads or form submissions
+- Format as JSON array: `[{"key": "username", "value": "john"}]`
+- Automatically sets `Content-Type: multipart/form-data`
+
+**None:**
+
+- For GET, DELETE, or requests without body
+
+## GraphQL Requests
+
+Send GraphQL queries with variables.
+
+**Setup:**
+
+1. Select "GRAPHQL" method
+2. Enter GraphQL endpoint URL
+3. Write your query in "Query" field
+4. Add variables in "Variables" field (JSON)
+
+**Example:**
+
+**Query:**
+
+```graphql
+query GetUser($id: ID!) {
+  user(id: $id) {
+    name
+    email
+  }
+}
+```
+
+**Variables:**
+
+```json
+{ "id": "123" }
+```
+
+**Tip:** Write queries in your GraphQL playground first, then paste them here. Variable substitution with `{{variableName}}` works in both Query and Variables fields!
+
+## Open Response in Editor
+
+View large or complex responses in your preferred code editor.
+
+**Setup:**
+
+1. Go to Extension Preferences
+2. Set "Preferred Editor" (e.g., "Visual Studio Code")
+3. Leave blank for system default
+
+**Usage:**
+
+From response view, choose "Open Response in Editor"
+
+**Why use this?**
+
+- Better performance for large responses
+- Superior syntax highlighting and formatting
+- Use your editor's search and navigation features
+- Works with JSON, HTML, and CSV formats
+
+## Collection Import/Export
+
+Share collections or back them up.
+
+**Export:**
+
+1. Select a collection
+2. Choose "Export Collection"
+3. Collection JSON copied to clipboard
+
+**Import:**
+
+1. Copy collection JSON to clipboard
+2. Choose "Import Collection from Clipboard"
+3. Collection imported as a new collection
+
+**Great for:**
+
+- Sharing starter collections with teammates
+- Personal backups
+- Moving between devices
+- Onboarding ("Here's how to use our API!")
+
+**Note:** Collections are imported as new copies. For sharing individual requests, use "Copy as cURL" (`Cmd+Shift+C`) instead.
+
 ## cURL Import/Export
 
 ### Import from cURL
 
 1. Copy a cURL command (from browser DevTools, docs, etc.)
-2. Press "New Request from cURL"
+2. Press `Cmd+Shift+U` or choose "New Request from cURL"
 3. The request is automatically parsed!
 
 ### Export to cURL
@@ -148,11 +290,12 @@ History is saved locally and never shared.
 ## Request Management
 
 - `Cmd+N` - New Request
-- `Cmd+E` - Edit/Open Request
-- `Cmd+O` - Run Request
+- `Enter` - Open Request
+- `Cmd+Shift+Enter` - Run Request
 - `Ctrl+X` - Delete Request
 - `Cmd+M` - Move to Collection
 - `Cmd+Shift+C` - Copy as cURL
+- `Cmd+Shift+U` - New Request from cURL
 
 ## Collections
 
@@ -179,7 +322,7 @@ History is saved locally and never shared.
 - `Cmd+Shift+D` - Toggle History Recording
 - `Cmd+Shift+B` - Backup All Data
 - `Cmd+Shift+S` - Sort Requests
-- `Cmd+?` - Help & Documentation
+- `Cmd+/` - Help & Documentation
 
 # Tips & Tricks
 
@@ -205,7 +348,7 @@ History is saved locally and never shared.
 ✅ Cookies are handled automatically\
 ✅ Secret variables are hidden in UI\
 ✅ All data stored locally only\
-✅ Use backup feature regularly
+✅ Use backup feature regularly (`Cmd+Shift+B`)
 
 ### Debugging
 
@@ -227,7 +370,7 @@ History is saved locally and never shared.
 
 1. Make sure environment is selected
 2. Check variable name matches exactly (`{{varName}}`)
-3. Variable must exist in active environment or Globals
+3. Variable must exist in active environment
 
 ### Pre-Request Not Running?
 
@@ -240,6 +383,17 @@ History is saved locally and never shared.
 1. Clear all cookies (Global Actions → Clear All Cookies)
 2. Check if token is being extracted (use ENVIRONMENT storage temporarily to verify)
 3. Verify token is being used in header correctly
+
+### Cookie Issues?
+
+If you're having authentication or session problems:
+
+1. Go to Global Actions
+2. Choose "Clear All Cookies"
+3. Confirm deletion
+4. Try your request again
+
+This clears ALL stored cookies from ALL domains.
 
 ### Still Having Issues?
 

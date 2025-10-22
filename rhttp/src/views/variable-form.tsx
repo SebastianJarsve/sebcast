@@ -1,7 +1,7 @@
 import { Action, ActionPanel, Alert, confirmAlert, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { $environments, saveVariable } from "../store/environments";
 import { Variable } from "~/types";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 
 interface VariableFormProps {
   environmentId: string;
@@ -54,7 +54,10 @@ export function VariableForm({ environmentId, variableKey }: VariableFormProps) 
             title="Save Variable"
             icon={Icon.HardDrive}
             onSubmit={handleSubmit}
-            shortcut={{ modifiers: ["cmd"], key: "s" }}
+            shortcut={{
+              macOS: { modifiers: ["cmd"], key: "s" },
+              windows: { modifiers: ["ctrl"], key: "s" },
+            }}
           />
         </ActionPanel>
       }

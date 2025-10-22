@@ -13,7 +13,7 @@ export function ErrorDetail({ error }: ErrorDetailProps) {
 We found some issues with the data you entered:
 
 \`\`\`json
-${error}
+${JSON.stringify(error, null, 2)}
 \`\`\`
 `;
 
@@ -22,7 +22,7 @@ ${error}
       markdown={markdown}
       actions={
         <ActionPanel>
-          <Action.CopyToClipboard title="Copy error message" content={markdown} />
+          <Action.CopyToClipboard title="Copy Error Message" content={markdown} />
         </ActionPanel>
       }
     />

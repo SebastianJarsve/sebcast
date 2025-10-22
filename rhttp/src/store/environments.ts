@@ -1,62 +1,53 @@
 // src/store/environments.ts
 import { randomUUID } from "node:crypto";
-import { persistentAtom } from "@sebastianjarsve/persistent-atom";
-import { createLocalStorageAdapter } from "@sebastianjarsve/persistent-atom/adapters";
-import { Environment, environmentSchema, environmentsSchema, Variable } from "../types";
-import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
+import { createLocalStorageAdapter, persistentAtom } from "zod-persist";
+import { Environment, environmentsSchema, Variable } from "~/types";
+import { LocalStorage, showToast, Toast } from "@raycast/api";
 
-export const $environments = persistentAtom<Environment[]>([], {
-  storage: createLocalStorageAdapter(),
+export const $environments = persistentAtom([], {
+  storage: createLocalStorageAdapter(LocalStorage),
   key: "env",
-  serialize: (data) => JSON.stringify(environmentsSchema.parse(data)),
-  deserialize: (raw) => {
-    let data: unknown;
-    try {
-      data = JSON.parse(raw);
-      return environmentsSchema.parse(data);
-    } catch (e) {
-      console.error(e);
-      return [];
-    }
+  schema: environmentsSchema,
+  onCorruption: (error) => {
+    console.error(error);
+    showToast({
+      style: Toast.Style.Failure,
+      title: "Failed to load environments",
+      message: "Data was corrupted. A backup was created and defaults have been restored.",
+    });
+    return [];
   },
 });
 
 // This will store the ID of the currently active environment
 export const $currentEnvironmentId = persistentAtom<string | null>(null, {
-  storage: createLocalStorageAdapter(),
+  storage: createLocalStorageAdapter(LocalStorage),
   key: "app-active-environment-id",
 });
 
 /**
- * Creates the default "Global" environment object.
- */
-function createGlobalEnvironmentObject(): Environment {
-  return {
-    id: randomUUID(),
-    name: GLOBAL_ENVIRONMENT_NAME,
-    variables: {},
-  };
-}
-
-/**
  * Checks if the environment store is empty on startup and creates
- * a default "Globals" environment if needed.
+ * a default "default" environment if needed.
  */
 export async function initializeDefaultEnvironment() {
   await $environments.ready;
   const environments = $environments.get();
 
   if (environments.length === 0) {
-    const globalEnv = createGlobalEnvironmentObject();
-    $environments.set([globalEnv]);
-    $currentEnvironmentId.set(globalEnv.id); // Automatically select it
+    const defaultEnv = {
+      id: randomUUID(),
+      name: "default",
+      variables: {},
+    };
+    $environments.set([defaultEnv]);
+    $currentEnvironmentId.set(defaultEnv.id); // Automatically select it
   }
 }
 
 // --- INITIALIZATION ---
 
 // Run the initialization logic once when the app starts.
-initializeDefaultEnvironment();
+initializeDefaultEnvironment().catch(console.error);
 
 // --- ACTIONS ---
 
@@ -134,7 +125,7 @@ export async function saveVariable(environmentId: string, key: string, variableD
 export async function deleteVariable(environmentId: string, key: string) {
   const updated = $environments.get().map((env) => {
     if (env.id === environmentId) {
-      const { [key]: _, ...remainingVars } = env.variables;
+      const remainingVars = Object.fromEntries(Object.entries(env.variables).filter(([k]) => k !== key));
       return { ...env, variables: remainingVars };
     }
     return env;
@@ -148,7 +139,7 @@ export async function deleteVariable(environmentId: string, key: string) {
  * @param key The key of the variable.
  * @param value The value to save.
  */
-export function saveVariableToActiveEnvironment(key: string, value: string) {
+export async function saveVariableToActiveEnvironment(key: string, value: string) {
   const activeId = $currentEnvironmentId.get();
   if (!activeId) {
     return;
@@ -160,5 +151,5 @@ export function saveVariableToActiveEnvironment(key: string, value: string) {
     isSecret: false,
   };
 
-  saveVariable(activeId, key, variableData);
+  await saveVariable(activeId, key, variableData);
 }

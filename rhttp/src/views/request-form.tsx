@@ -1,5 +1,5 @@
 import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
-import { useMemo, useReducer, useState } from "react";
+import { useReducer, useState } from "react";
 import { NewRequest, Request, Method } from "~/types";
 import { $collections, $currentCollectionId, createRequest, updateRequest } from "~/store";
 import { COMMON_HEADER_KEYS, METHODS } from "~/constants";
@@ -8,7 +8,7 @@ import { ErrorDetail } from "./error-view";
 import { randomUUID } from "crypto";
 import { ResponseActionsEditor } from "~/components/response-actions-editor";
 import { KeyValueEditor } from "~/components/key-value-editor";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 import { CopyVariableAction, GlobalActions } from "~/components/actions";
 import { $currentEnvironmentId, $environments } from "~/store/environments";
 import { useRunRequest } from "~/hooks/use-run-request";
@@ -20,7 +20,7 @@ interface RequestFormProps {
 }
 
 type FormAction =
-  | { type: "SET_FIELD"; payload: { field: keyof Request; value: any } }
+  | { type: "SET_FIELD"; payload: { field: keyof Request; value: unknown } }
   | { type: "SET_HEADERS"; payload: Request["headers"] }
   | { type: "SET_RESPONSE_ACTIONS"; payload: Request["responseActions"] }
   | { type: "ADD_HEADER" }
@@ -152,18 +152,20 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
             title="Save Request"
             icon={Icon.HardDrive}
             onAction={handleSave}
-            shortcut={{ modifiers: ["cmd"], key: "s" }}
+            shortcut={{
+              macOS: { modifiers: ["cmd"], key: "s" },
+              windows: { modifiers: ["ctrl"], key: "s" },
+            }}
           />
 
-          <CopyVariableAction />
+          <CopyVariableAction currentRequestPreActions={dirtyRequest.preRequestActions} />
 
           <ActionPanel.Section title="Form Actions">
             <Action
               title="Add Header"
               icon={Icon.Plus}
-              // onAction={() => setDirtyRequest((old) => ({ ...old, headers: [...old.headers, { key: "", value: "" }] }))}
               onAction={() => dispatch({ type: "ADD_HEADER" })}
-              shortcut={{ modifiers: ["cmd"], key: "h" }}
+              shortcut={{ macOS: { modifiers: ["cmd"], key: "h" }, windows: { modifiers: ["ctrl"], key: "h" } }}
             />
             {activeHeaderIndex !== null && (
               <Action
@@ -176,14 +178,14 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                   setActiveHeaderIndex(null);
                   showToast({ style: Toast.Style.Success, title: "Header Removed" });
                 }}
-                shortcut={{ modifiers: ["ctrl"], key: "h" }}
+                shortcut={{ macOS: { modifiers: ["ctrl"], key: "h" }, windows: { modifiers: ["alt"], key: "h" } }}
               />
             )}
             <Action
               title="Add Response Action"
               icon={Icon.Plus}
               onAction={() => dispatch({ type: "ADD_RESPONSE_ACTION" })}
-              shortcut={{ modifiers: ["opt"], key: "r" }}
+              shortcut={{ macOS: { modifiers: ["opt"], key: "r" }, windows: { modifiers: ["alt"], key: "r" } }}
             />
             {activeActionIndex !== null && (
               <Action
@@ -194,14 +196,14 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                   dispatch({ type: "REMOVE_RESPONSE_ACTION", payload: { index: activeActionIndex } });
                   showToast({ style: Toast.Style.Success, title: "Action Removed" });
                 }}
-                shortcut={{ modifiers: ["ctrl"], key: "r" }}
+                shortcut={{ macOS: { modifiers: ["ctrl"], key: "r" }, windows: { modifiers: ["ctrl"], key: "r" } }}
               />
             )}
             <Action
               title="Add Pre-Request Action"
               icon={Icon.Plus}
               onAction={() => dispatch({ type: "ADD_PRE_REQUEST_ACTION" })}
-              shortcut={{ modifiers: ["opt"], key: "p" }}
+              shortcut={{ macOS: { modifiers: ["opt"], key: "p" }, windows: { modifiers: ["alt"], key: "p" } }}
             />
             {activePreRequestIndex !== null && (
               <Action
@@ -213,7 +215,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                   setActivePreRequestIndex(null);
                   showToast({ style: Toast.Style.Success, title: "Pre-Request Action Removed" });
                 }}
-                shortcut={{ modifiers: ["ctrl"], key: "p" }}
+                shortcut={{ macOS: { modifiers: ["ctrl"], key: "p" }, windows: { modifiers: ["ctrl"], key: "p" } }}
               />
             )}
           </ActionPanel.Section>
@@ -221,10 +223,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         </ActionPanel>
       }
     >
-      <Form.Description
-        title={`Collection: ${currentCollection?.title ?? "Unknown"}`}
-        text={`Environment: ${currentEnvironment?.name ?? "None"}`}
-      />
+      <Form.Description text={`Collection: ${currentCollection?.title ?? "Unknown"}`} />
       <Form.Dropdown
         id="method"
         title="HTTP Method"
@@ -273,11 +272,11 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         </Form.Dropdown>
       )}
       {/* Conditional fields for Body, Params, etc. */}
-      {METHODS[dirtyRequest.method].bodyAllowed && (
+      {METHODS[dirtyRequest.method].bodyAllowed && dirtyRequest.bodyType !== "NONE" && (
         <Form.TextArea
           id="body"
           title="Body"
-          placeholder="Enter JSON body"
+          placeholder="Enter body"
           value={dirtyRequest.body}
           onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "body", value } })}
         />

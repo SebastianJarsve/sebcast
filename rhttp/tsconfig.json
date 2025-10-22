@@ -4,6 +4,10 @@
     "src/**/*",
     "raycast-env.d.ts"
   ],
+  "exclude": [
+    "node_modules",
+    "**/*.test.ts"
+  ],
   "compilerOptions": {
     "lib": [
       "ES2023"

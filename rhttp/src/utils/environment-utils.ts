@@ -12,19 +12,15 @@ export function resolveVariables(): Record<string, string> {
     return {};
   }
 
-  const globalEnv = allEnvironments.find((e) => e.name === "Globals");
   const activeEnv = allEnvironments.find((e) => e.id === activeId);
 
   const resolved: Record<string, string> = {};
 
-  // 1. Add all global variables first.
-  if (globalEnv) {
-    for (const [key, variable] of Object.entries(globalEnv.variables)) {
-      resolved[key] = variable.value;
-    }
+  if (!activeEnv) {
+    return {}; // ✅ No active environment = no variables
   }
 
-  // 2. Add active environment variables, overwriting globals with the same key.
+  // Add active environment variables, overwriting globals with the same key.
   if (activeEnv) {
     for (const [key, variable] of Object.entries(activeEnv.variables)) {
       resolved[key] = variable.value;
@@ -58,9 +54,12 @@ export function substitutePlaceholders(
  * @param path The path string (e.g., "user.address.city").
  * @returns The found value or undefined if the path is invalid.
  */
-export function getValueByPath(obj: any, path: string): unknown {
-  return path.split(".").reduce((current, key) => {
+export function getValueByPath(obj: Record<string, unknown>, path: string): unknown {
+  return path.split(".").reduce<unknown>((current, key) => {
     // Use optional chaining to safely access nested properties
-    return current?.[key];
+    if (current != null && typeof current === "object" && key in current) {
+      return (current as Record<string, unknown>)[key];
+    }
+    return undefined;
   }, obj);
 }

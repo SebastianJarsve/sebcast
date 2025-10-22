@@ -203,8 +203,13 @@ function SaveSelectedAction({ value }: { value: unknown }) {
 
 /* ---------- Helpers ---------- */
 
-function getNode(current: unknown, path: Path): any {
-  return path.reduce((acc: any, seg) => (acc && typeof acc === "object" ? acc[seg] : undefined), current);
+function getNode(current: unknown, path: Path): unknown {
+  return path.reduce((acc: unknown, seg) => {
+    if (acc && typeof acc === "object" && seg in acc) {
+      return (acc as Record<string | number, unknown>)[seg];
+    }
+    return undefined;
+  }, current);
 }
 
 function listChildrenPaged(node: unknown, page: number, pageSize: number) {
@@ -222,7 +227,12 @@ function listChildrenPaged(node: unknown, page: number, pageSize: number) {
         label: String(idx),
         accessor: String(idx),
         type: t,
-        meta: t === "array" ? `${v.length} items` : t === "object" ? `${Object.keys(v ?? {}).length} keys` : undefined,
+        meta:
+          t === "array"
+            ? `${(v as unknown[]).length} items`
+            : t === "object"
+              ? `${Object.keys(v ?? {}).length} keys`
+              : undefined,
         canDrill: t === "array" || t === "object",
         kind: "child" as const,
       };
@@ -244,7 +254,7 @@ function listChildrenPaged(node: unknown, page: number, pageSize: number) {
         type: t,
         meta:
           t === "array"
-            ? `${(v as any[]).length} items`
+            ? `${(v as unknown[]).length} items`
             : t === "object"
               ? `${Object.keys(v ?? {}).length} keys`
               : undefined,

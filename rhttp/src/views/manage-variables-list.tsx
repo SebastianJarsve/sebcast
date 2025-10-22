@@ -1,10 +1,9 @@
-import { Action, ActionPanel, List, Icon, confirmAlert, showToast, Alert, Toast } from "@raycast/api";
+import { Action, ActionPanel, List, Icon, confirmAlert, showToast, Alert, Toast, Keyboard } from "@raycast/api";
 import { $environments, $currentEnvironmentId, deleteVariable, deleteEnvironment } from "../store/environments";
 import { EnvironmentForm } from "./environment-form";
 import { VariableForm } from "./variable-form";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 import { GlobalActions } from "~/components/actions";
-import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
 
 function EnvironmentDropdown() {
   const { value: environments } = useAtom($environments);
@@ -35,9 +34,9 @@ function CommonActions() {
         {/* Actions for the selected environment */}
         {currentEnvironment?.id && (
           <Action.Push
-            title="Add variable"
+            title="Add Variable"
             target={<VariableForm environmentId={currentEnvironment?.id} />}
-            shortcut={{ modifiers: ["cmd"], key: "n" }}
+            shortcut={Keyboard.Shortcut.Common.New}
             icon={Icon.PlusCircle}
           />
         )}
@@ -45,16 +44,22 @@ function CommonActions() {
         <Action.Push
           title="Edit Environment"
           target={<EnvironmentForm environmentId={currentEnvironment?.id} />}
-          shortcut={{ modifiers: ["cmd", "shift"], key: "e" }}
+          shortcut={{
+            macOS: { modifiers: ["cmd", "shift"], key: "e" },
+            windows: { modifiers: ["ctrl", "shift"], key: "e" },
+          }}
           icon={Icon.Pencil}
         />
         <Action.Push
           title="Create New Environment"
           target={<EnvironmentForm />}
-          shortcut={{ modifiers: ["cmd", "shift"], key: "n" }}
+          shortcut={{
+            macOS: { modifiers: ["cmd", "shift"], key: "n" },
+            windows: { modifiers: ["ctrl", "shift"], key: "n" },
+          }}
           icon={Icon.PlusTopRightSquare}
         />
-        {currentEnvironment && currentEnvironment.name !== GLOBAL_ENVIRONMENT_NAME && (
+        {currentEnvironment && (
           <Action
             title="Delete Environment"
             style={Action.Style.Destructive}
@@ -112,7 +117,7 @@ export function ManageVariablesList() {
                   title="Delete Variable"
                   icon={Icon.Trash}
                   style={Action.Style.Destructive}
-                  shortcut={{ modifiers: ["ctrl"], key: "x" }}
+                  shortcut={Keyboard.Shortcut.Common.Remove}
                   onAction={async () => {
                     if (
                       await confirmAlert({

@@ -1,8 +1,7 @@
 import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { useState } from "react";
 import { $environments, createEnvironment, updateEnvironment } from "../store/environments";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
-import { GLOBAL_ENVIRONMENT_NAME } from "~/constants";
+import { useAtom } from "zod-persist/react";
 
 interface EnvironmentFormProps {
   environmentId?: string;
@@ -49,10 +48,6 @@ export function EnvironmentForm({ environmentId }: EnvironmentFormProps) {
 
     try {
       if (environmentId) {
-        if (environmentToEdit?.name === GLOBAL_ENVIRONMENT_NAME) {
-          showToast({ style: Toast.Style.Failure, title: "Cannot rename the Globals environment" });
-          return;
-        }
         await updateEnvironment(environmentId, { name: newName });
         showToast({ title: "Environment Updated" });
       } else {
@@ -75,7 +70,10 @@ export function EnvironmentForm({ environmentId }: EnvironmentFormProps) {
           <ActionPanel.Submenu
             title="Add Environment Emoji"
             icon={Icon.Emoji}
-            shortcut={{ modifiers: ["cmd"], key: "e" }}
+            shortcut={{
+              macOS: { modifiers: ["cmd"], key: "e" },
+              windows: { modifiers: ["ctrl"], key: "e" },
+            }}
           >
             <Action title="🔧 Development" onAction={() => insertEmoji("🔧")} />
             <Action title="🚧 Staging" onAction={() => insertEmoji("🚧")} />

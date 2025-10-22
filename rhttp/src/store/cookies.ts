@@ -1,14 +1,13 @@
-import { persistentAtom } from "@sebastianjarsve/persistent-atom";
-import { cookiesSchema, Cookies, ParsedCookie } from "../types";
-import { createRaycastFileAdapter } from "../lib/adapters";
+import { cookiesSchema, ParsedCookie } from "~/types";
+import { createRaycastFileAdapter } from "~/lib/adapters";
+import { persistentAtom } from "zod-persist";
 
-export const $cookies = persistentAtom<Cookies>(
+export const $cookies = persistentAtom(
   {},
   {
     storage: createRaycastFileAdapter("cookies.json"),
     key: "cookies",
-    serialize: (data) => JSON.stringify(cookiesSchema.parse(data)),
-    deserialize: (raw) => cookiesSchema.parse(JSON.parse(raw)),
+    schema: cookiesSchema,
   },
 );
 
