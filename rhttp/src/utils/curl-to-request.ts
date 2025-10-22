@@ -1,7 +1,6 @@
 // src/utils.ts
 import { NewRequest, Headers, Collection, newRequestSchema } from "~/types";
 import { prepareRequest, resolveVariables } from ".";
-import { z } from "zod";
 
 /**
  * Parses a cURL command string and converts it into a NewRequest object.
