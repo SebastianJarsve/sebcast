@@ -93,7 +93,7 @@ export function useRunRequest() {
                   // ✨ Store based on storage preference
                   if (action.storage === "ENVIRONMENT") {
                     // Save to environment (persistent)
-                    saveVariableToActiveEnvironment(action.variableKey, valueStr);
+                    await saveVariableToActiveEnvironment(action.variableKey, valueStr);
                   } else {
                     // Store temporarily (only for this request chain)
                     temporaryVariables[action.variableKey] = valueStr;

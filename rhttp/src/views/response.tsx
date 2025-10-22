@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Detail, Icon, open, showToast, useNavigation } from "@raycast/api";
+import { Action, ActionPanel, Color, Detail, Icon, Keyboard, open, showToast } from "@raycast/api";
 import { randomUUID } from "crypto";
 import fs from "fs/promises";
 import path from "path";
@@ -19,7 +19,6 @@ export interface ResponseViewProps {
 }
 
 export function ResponseView({ requestSnapshot, sourceRequestId, response }: ResponseViewProps) {
-  const { push } = useNavigation();
   const [showHeaders, setShowHeaders] = useState(false);
 
   function getStatusColor(status: number) {
@@ -86,6 +85,7 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
 
   // Type-specific actions
   const getTypeSpecificActions = () => {
+    const isBodyTooLarge = bodyString.length > 1000 * 1024;
     switch (responseType) {
       case "html":
         return (
@@ -100,7 +100,6 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
           />
         );
       case "json":
-        const isBodyTooLarge = bodyString.length > 1000 * 1024;
         return !isBodyTooLarge && !showHeaders ? (
           <Action.Push
             title="Explore Full Body"
@@ -116,7 +115,7 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
   return (
     <Detail
       markdown={getMarkdown()}
-      navigationTitle="JSON Response"
+      navigationTitle="Response"
       metadata={metadata}
       actions={
         <ActionPanel>
@@ -124,15 +123,18 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
             title={showHeaders ? "Show Body" : "Show Headers"}
             icon={showHeaders ? Icon.Code : Icon.List}
             onAction={() => setShowHeaders(!showHeaders)}
-            shortcut={{ modifiers: ["cmd"], key: "h" }}
           />
           {getTypeSpecificActions()}
-          <OpenInEditorAction responseBody={bodyString} />
-          <Action.CopyToClipboard title="Copy Full Body" content={bodyString} />
+          <OpenInEditorAction responseBody={bodyString} fileType={responseType} />
+          <Action.CopyToClipboard
+            title="Copy Full Body"
+            content={bodyString}
+            shortcut={Keyboard.Shortcut.Common.Copy}
+          />
           <Action.CopyToClipboard
             title="Copy Headers"
             content={JSON.stringify(response.headers, null, 2)}
-            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+            shortcut={Keyboard.Shortcut.Common.CopyPath}
           />
           <Action
             title="Save to History"

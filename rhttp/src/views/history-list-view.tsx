@@ -1,4 +1,3 @@
-// src/views/HistoryView.tsx
 import {
   Action,
   ActionPanel,
@@ -10,6 +9,7 @@ import {
   showToast,
   Toast,
   useNavigation,
+  Keyboard,
 } from "@raycast/api";
 import { $history, deleteHistoryEntry, clearHistory } from "../store/history";
 import { runRequest } from "../utils";
@@ -20,7 +20,7 @@ import axios from "axios";
 import { ErrorDetail } from "./error-view";
 import { z } from "zod";
 import { METHODS } from "../constants";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 import { useMemo } from "react";
 import { RequestForm } from "./request-form";
 import { $environments } from "~/store/environments";
@@ -47,7 +47,10 @@ function CommonActions() {
       title="Clear All History"
       icon={Icon.Trash}
       style={Action.Style.Destructive}
-      shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
+      shortcut={{
+        macOS: { modifiers: ["cmd", "shift"], key: "x" },
+        windows: { modifiers: ["ctrl", "shift"], key: "x" },
+      }}
       onAction={async () => {
         if (
           await confirmAlert({
@@ -103,9 +106,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
         <List.EmptyView title="No History Found" description="Run some requests to see their history here." />
       ) : (
         history.map((entry: HistoryEntry) => {
-          const collectionName = !!entry.sourceRequestId
-            ? requestCollectionMap.get(entry.sourceRequestId)?.title
-            : null;
+          const collectionName = entry.sourceRequestId ? requestCollectionMap.get(entry.sourceRequestId)?.title : null;
 
           const date = new Date(entry.createdAt);
           // Find the environment object first
@@ -162,7 +163,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                   />
 
                   <Action
-                    title="Re-run Request"
+                    title="Re-Run Request"
                     icon={Icon.Bolt}
                     onAction={async () => {
                       const toast = await showToast({ style: Toast.Style.Animated, title: "Re-running request..." });
@@ -190,6 +191,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                           statusText: response.statusText,
                           headers: response.headers as Record<string, string>,
                           body: response.data,
+                          requestUrl: entry.requestSnapshot.url,
                         };
 
                         push(
@@ -208,6 +210,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                               sourceRequestId={entry.sourceRequestId}
                               requestSnapshot={entry.requestSnapshot}
                               response={{
+                                requestUrl: entry.requestSnapshot.url,
                                 requestMethod: entry.requestSnapshot.method,
                                 status: error.response.status,
                                 statusText: error.response.statusText,
@@ -240,7 +243,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                     title="Delete Entry"
                     icon={Icon.Trash}
                     style={Action.Style.Destructive}
-                    shortcut={{ modifiers: ["ctrl"], key: "x" }}
+                    shortcut={Keyboard.Shortcut.Common.Remove}
                     onAction={async () => {
                       if (
                         await confirmAlert({

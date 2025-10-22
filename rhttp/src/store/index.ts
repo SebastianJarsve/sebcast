@@ -2,19 +2,15 @@ import { atom } from "nanostores";
 import { z } from "zod";
 import { Collection, collectionSchema, NewCollection, NewRequest, Request } from "../types";
 import { randomUUID } from "crypto";
-import { createFileAdapter, createLocalStorageAdapter } from "@sebastianjarsve/persistent-atom/adapters";
+import { createFileAdapter, createLocalStorageAdapter, persistentAtom } from "zod-persist";
 import path from "path";
-import { environment } from "@raycast/api";
-import { persistentAtom } from "@sebastianjarsve/persistent-atom";
+import { environment, LocalStorage } from "@raycast/api";
 import { DEFAULT_COLLECTION_NAME } from "~/constants";
 
-export const $collections = persistentAtom<Collection[]>([], {
+export const $collections = persistentAtom([], {
   storage: createFileAdapter(path.join(environment.supportPath, "collections.json")),
   key: "collections",
-  serialize: JSON.stringify,
-  deserialize: (raw) => {
-    return z.array(collectionSchema).parse(JSON.parse(raw));
-  },
+  schema: z.array(collectionSchema),
 });
 
 // --- A helper to create the default collection object ---
@@ -36,14 +32,14 @@ export async function initializeDefaultCollection() {
   await $collections.ready;
   if ($collections.get().length === 0) {
     const defaultCollection = createDefaultCollectionObject();
-    $collections.setAndFlush([defaultCollection]);
-    $currentCollectionId.setAndFlush(defaultCollection.id);
+    await $collections.setAndFlush([defaultCollection]);
+    await $currentCollectionId.setAndFlush(defaultCollection.id);
   }
 }
 // initializeDefaultCollection();
 
 export const $currentCollectionId = persistentAtom<string | null>(null, {
-  storage: createLocalStorageAdapter(),
+  storage: createLocalStorageAdapter(LocalStorage),
   key: "currentCollectionId",
   isEqual(a, b) {
     return a === b;

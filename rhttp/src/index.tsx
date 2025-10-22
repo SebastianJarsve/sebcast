@@ -1,4 +1,15 @@
-import { Action, ActionPanel, Alert, confirmAlert, Icon, List, showToast, Toast } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Alert,
+  Clipboard,
+  confirmAlert,
+  Icon,
+  Keyboard,
+  List,
+  showToast,
+  Toast,
+} from "@raycast/api";
 import {
   $collections,
   $currentCollectionId,
@@ -12,13 +23,12 @@ import { RequestForm } from "~/views/request-form";
 import { Collection, Method, Request } from "~/types";
 import { $currentEnvironmentId, $environments, initializeDefaultEnvironment } from "~/store/environments";
 import { CollectionActions, GlobalActions, NewRequestFromCurlAction, SortRequestsMenu } from "~/components/actions";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { useAtom } from "zod-persist/react";
 import { DEFAULT_COLLECTION_NAME, METHODS, SORT_OPTIONS } from "~/constants";
 import { generateCurlCommand } from "./utils/curl-to-request";
 import { $cookies } from "./store/cookies";
 import { $history } from "./store/history";
 import { useEffect, useMemo, useState } from "react";
-import { PersistentAtom } from "@sebastianjarsve/persistent-atom/.";
 import { useRunRequest } from "./hooks/use-run-request";
 import { substitutePlaceholders } from "./utils/environment-utils";
 import { $collectionSortPreferences } from "./store/settings";
@@ -40,7 +50,8 @@ function CommonActions({ currentCollection }: { currentCollection: Collection | 
         <Action.Push
           key={"new-request"}
           title="New Request"
-          shortcut={{ modifiers: ["cmd"], key: "n" }}
+          shortcut={Keyboard.Shortcut.Common.New}
+          // shortcut={{ modifiers: ["cmd"], key: "n" }}
           target={<RequestForm collectionId={currentCollection.id} request={{}} />}
           icon={Icon.PlusCircle}
         />
@@ -61,20 +72,26 @@ function CommonActions({ currentCollection }: { currentCollection: Collection | 
       )}
 
       <CollectionActions>
-        {currentCollection && currentCollection.title !== DEFAULT_COLLECTION_NAME && (
+        {currentCollection && currentCollection.title !== DEFAULT_COLLECTION_NAME ? (
           <Action.Push
             key={"edit-request"}
             title="Edit Collection"
-            shortcut={{ modifiers: ["cmd", "shift"], key: "e" }}
+            shortcut={{
+              macOS: { modifiers: ["cmd", "shift"], key: "e" },
+              windows: { modifiers: ["ctrl", "shift"], key: "e" },
+            }}
             target={<CollectionForm collectionId={currentCollection.id} />}
             icon={Icon.Pencil}
           />
-        )}
+        ) : null}
       </CollectionActions>
       <Action.Push
         key={"create-request"}
         title="Create Collection"
-        shortcut={{ modifiers: ["cmd", "shift"], key: "n" }}
+        shortcut={{
+          macOS: { modifiers: ["cmd", "shift"], key: "n" },
+          windows: { modifiers: ["ctrl", "shift"], key: "n" },
+        }}
         target={<CollectionForm />}
         icon={Icon.PlusTopRightSquare}
       />
@@ -83,7 +100,7 @@ function CommonActions({ currentCollection }: { currentCollection: Collection | 
           title="Delete Collection"
           icon={Icon.Trash}
           style={Action.Style.Destructive}
-          shortcut={{ modifiers: ["cmd", "shift"], key: "delete" }}
+          shortcut={Keyboard.Shortcut.Common.RemoveAll}
           onAction={async () => {
             if (
               await confirmAlert({
@@ -130,7 +147,7 @@ export function CollectionDropdown() {
   );
 }
 
-function useStoresReady(atoms: PersistentAtom<any>[]) {
+function useStoresReady(atoms: Array<{ ready: Promise<void> }>) {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -206,38 +223,54 @@ function RequestListItem({ request, currentCollection, collections }: RequestLis
         <ActionPanel>
           <Action.Push
             key={"edit-request"}
-            title="Open request"
+            title="Open Request"
             icon={Icon.ChevronRight}
             target={<RequestForm collectionId={currentCollection.id} request={request} />}
-            shortcut={{ modifiers: ["cmd"], key: "e" }}
           />
           {isLoading ? (
-            <Action
-              title="Cancel Request"
-              icon={Icon.XMarkCircle}
-              onAction={cancel}
-              style={Action.Style.Destructive}
-              shortcut={{ modifiers: ["cmd"], key: "o" }}
-            />
+            <Action title="Cancel Request" icon={Icon.XMarkCircle} onAction={cancel} style={Action.Style.Destructive} />
           ) : (
-            <Action
-              title="Run request"
-              icon={Icon.Bolt}
-              shortcut={{ modifiers: ["cmd"], key: "o" }}
-              onAction={() => run(request, currentCollection)}
-            />
+            <Action title="Run Request" icon={Icon.Bolt} onAction={() => run(request, currentCollection)} />
           )}
-          <Action.CopyToClipboard
+          <Action
             title="Copy as cURL"
             icon={Icon.Terminal}
-            content={generateCurlCommand(request, currentCollection)}
-            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+            onAction={async () => {
+              const { command, hasTempVars } = generateCurlCommand(request, currentCollection);
+
+              if (hasTempVars) {
+                const shouldCopy = await confirmAlert({
+                  title: "Contains Temporary Variables",
+                  message:
+                    "This cURL command contains temporary variables from pre-request actions, which can't be used in standalone cURL. Environment variables will work fine.",
+                  primaryAction: { title: "Copy Anyway", style: Alert.ActionStyle.Default },
+                  dismissAction: { title: "Cancel" },
+                });
+
+                if (shouldCopy) {
+                  await Clipboard.copy(command);
+                  await showToast({
+                    style: Toast.Style.Success,
+                    title: "Copied to Clipboard",
+                    message: "Replace temporary variables manually",
+                  });
+                }
+              } else {
+                await Clipboard.copy(command);
+                await showToast({
+                  style: Toast.Style.Success,
+                  title: "Copied to Clipboard",
+                });
+              }
+            }}
+            shortcut={Keyboard.Shortcut.Common.Copy}
           />
+
           <CommonActions currentCollection={currentCollection} />
           <ActionPanel.Submenu
-            title="Move request to another collection"
+            title="Move Request to Another Collection"
             icon={Icon.Switch}
-            shortcut={{ modifiers: ["cmd"], key: "m" }}
+            shortcut={{ macOS: { modifiers: ["cmd"], key: "m" }, windows: { modifiers: ["ctrl"], key: "m" } }}
           >
             {collections.map((c) => (
               <Action
@@ -251,7 +284,7 @@ function RequestListItem({ request, currentCollection, collections }: RequestLis
             title="Delete Request"
             icon={Icon.Trash}
             style={Action.Style.Destructive}
-            shortcut={{ modifiers: ["ctrl"], key: "x" }}
+            shortcut={Keyboard.Shortcut.Common.Remove}
             onAction={async () => {
               if (
                 await confirmAlert({
@@ -302,13 +335,13 @@ export default function RequestList() {
 
     const requests = [...currentCollection.requests];
 
+    const methodOrder: Method[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "GRAPHQL"];
     switch (sortBy) {
       case SORT_OPTIONS.NAME_ASC:
         return requests.sort((a, b) => (a.title || a.url).localeCompare(b.title || b.url));
       case SORT_OPTIONS.NAME_DESC:
         return requests.sort((a, b) => (b.title || b.url).localeCompare(a.title || a.url));
       case SORT_OPTIONS.METHOD:
-        const methodOrder: Method[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "GRAPHQL"];
         return requests.sort((a, b) => methodOrder.indexOf(a.method) - methodOrder.indexOf(b.method));
       case SORT_OPTIONS.URL:
         return requests.sort((a, b) => a.url.localeCompare(b.url));
@@ -324,7 +357,7 @@ export default function RequestList() {
   return (
     <List
       isLoading={!isReady || isLoading}
-      navigationTitle={`${currentEnvironment?.name}`}
+      navigationTitle={`${currentEnvironment?.name ? currentEnvironment.name : environments.length === 0 ? "rhttp" : "No environments selected"}`}
       searchBarPlaceholder="Search requests..."
       searchBarAccessory={<CollectionDropdown />}
       actions={

@@ -1,5 +1,5 @@
 // src/utils.ts
-import { NewRequest, Headers, Collection } from "~/types";
+import { NewRequest, Headers, Collection, newRequestSchema } from "~/types";
 import { prepareRequest, resolveVariables } from ".";
 
 /**
@@ -18,11 +18,11 @@ export function parseCurlToRequest(curl: string): NewRequest | null {
 
     // Find the method flag (-X or --request) and capture the next word.
     const methodMatch = curl.match(/-X\s*(\w+)|--request\s*(\w+)/);
-    const method = (methodMatch ? methodMatch[1] || methodMatch[2] : "GET").toUpperCase() as NewRequest["method"];
+    const method = (methodMatch ? methodMatch[1] || methodMatch[2] : "GET").toUpperCase();
 
-    // Find all header flags (-H) and their values. The 'g' flag finds all occurrences.
+    // Find all header flags (-H or --header) and their values. The 'g' flag finds all occurrences.
     const headers: Headers = [];
-    const headerRegex = /-H\s*'([^']*)'|-H\s*"([^"]*)"/g;
+    const headerRegex = /(?:-H|--header)\s+['"]([^'"]+)['"]/g;
     let headerMatch;
     while ((headerMatch = headerRegex.exec(curl)) !== null) {
       const headerString = headerMatch[1] || headerMatch[2];
@@ -50,15 +50,19 @@ export function parseCurlToRequest(curl: string): NewRequest | null {
       params = JSON.stringify(Object.fromEntries(searchParams.entries()));
     }
 
-    // Assemble the final NewRequest object.
-    const newRequest: NewRequest = {
+    // Assemble the raw parsed data
+    const rawParsedData = {
       url: requestUrl,
-      method,
+      method: method,
       headers,
       body,
       bodyType,
       params: method === "GET" ? params : undefined,
     };
+
+    // ✅ Validate the entire request against the Zod schema
+    // This will catch any invalid data and provide clear error messages
+    const newRequest = newRequestSchema.parse(rawParsedData);
 
     return newRequest;
   } catch (error) {
@@ -70,7 +74,10 @@ export function parseCurlToRequest(curl: string): NewRequest | null {
 /**
  * Converts a request object into a cURL command string.
  */
-export function generateCurlCommand(request: NewRequest, collection: Collection): string {
+export function generateCurlCommand(
+  request: NewRequest,
+  collection: Collection,
+): { command: string; hasTempVars: boolean } {
   const variables = resolveVariables();
   const { finalUrl, finalHeaders, finalBody, finalParams, finalGqlQuery, finalGqlVariables } = prepareRequest(
     request,
@@ -88,7 +95,7 @@ export function generateCurlCommand(request: NewRequest, collection: Collection)
       if (queryString) {
         commandUrl += `?${queryString}`;
       }
-    } catch (e) {
+    } catch {
       // Silently ignore invalid JSON in params for cURL generation
     }
   }
@@ -122,7 +129,7 @@ export function generateCurlCommand(request: NewRequest, collection: Collection)
       // Escape single quotes in the final JSON string
       const gqlBody = JSON.stringify(gqlPayload).replace(/'/g, "'\\''");
       curl += ` \\\n  --data-raw '${gqlBody}'`;
-    } catch (e) {
+    } catch {
       /* ignore invalid JSON */
     }
   } else if (request.bodyType === "FORM_DATA" && finalBody) {
@@ -132,12 +139,14 @@ export function generateCurlCommand(request: NewRequest, collection: Collection)
         // Use the -F flag for each form data field
         curl += ` \\\n  -F '${pair.key}=${pair.value}'`;
       }
-    } catch (e) {
+    } catch {
       // Ignore if the body is not a valid JSON array of pairs
     }
   } else if (finalBody) {
     // The existing logic for raw/JSON bodies
     curl += ` \\\n  --data-raw '${finalBody}'`;
   }
-  return curl;
+  const hasTempVars = /\{\{[^}]+\}\}/.test(curl);
+
+  return { command: curl, hasTempVars };
 }

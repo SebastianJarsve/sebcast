@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { persistentAtom } from "@sebastianjarsve/persistent-atom";
+import { persistentAtom } from "zod-persist";
 import { HistoryEntry, historySchema, ResponseData, NewRequest } from "../types";
 import { createRaycastFileAdapter } from "../lib/adapters";
 import { $currentEnvironmentId } from "./environments";
@@ -7,11 +7,10 @@ import { $currentEnvironmentId } from "./environments";
 /**
  * A persistent atom to store an array of history entries.
  */
-export const $history = persistentAtom<HistoryEntry[]>([], {
+export const $history = persistentAtom([], {
   storage: createRaycastFileAdapter("request-history.json"),
   key: "request-history",
-  serialize: (data) => JSON.stringify(historySchema.parse(data)),
-  deserialize: (raw) => historySchema.parse(JSON.parse(raw)),
+  schema: historySchema,
 });
 
 /**

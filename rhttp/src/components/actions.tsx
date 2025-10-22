@@ -18,12 +18,12 @@ import { $currentEnvironmentId, $environments } from "../store/environments";
 import { ManageVariablesList } from "../views/manage-variables-list";
 import { HistoryView } from "../views/history-list-view";
 import { $collectionSortPreferences, $isHistoryEnabled } from "../store/settings";
-import { type Collection, newCollectionSchema } from "~/types";
-import { useAtom } from "@sebastianjarsve/persistent-atom/react";
+import { type Collection, environmentsSchema, newCollectionSchema } from "~/types";
+import { useAtom } from "zod-persist/react";
 import { parseCurlToRequest } from "~/utils/curl-to-request";
 import { RequestForm } from "~/views/request-form";
 import { resolveVariables } from "~/utils";
-import { PropsWithChildren } from "react";
+import { JSX } from "react";
 import path from "path";
 import fs from "fs/promises";
 import os from "os";
@@ -49,9 +49,12 @@ export function SelectEnvironmentMenu() {
   const currentEnvironment = allEnvironments.find((e) => e.id === currentEnvironmentId);
   return (
     <ActionPanel.Submenu
-      title="Select environment"
+      title="Select Environment"
       icon={Icon.Key}
-      shortcut={{ modifiers: ["cmd", "shift"], key: "p" }}
+      shortcut={{
+        macOS: { modifiers: ["cmd", "shift"], key: "p" },
+        windows: { modifiers: ["ctrl", "shift"], key: "p" },
+      }}
     >
       {allEnvironments.map((env) => (
         <Action
@@ -76,7 +79,10 @@ export function EnvironmentActions() {
         title="Manage Environments"
         icon={Icon.Pencil}
         target={<ManageVariablesList />}
-        shortcut={{ modifiers: ["cmd", "shift"], key: "v" }}
+        shortcut={{
+          macOS: { modifiers: ["cmd", "shift"], key: "v" },
+          windows: { modifiers: ["ctrl", "shift"], key: "v" },
+        }}
       />
     </>
   );
@@ -90,7 +96,10 @@ export function HistoryActions() {
         title="View History"
         icon={Icon.Clock}
         target={<HistoryView />}
-        shortcut={{ modifiers: ["cmd", "shift"], key: "h" }}
+        shortcut={{
+          macOS: { modifiers: ["cmd", "shift"], key: "h" },
+          windows: { modifiers: ["ctrl", "shift"], key: "h" },
+        }}
       />
       <Action
         title={isHistoryEnabled ? "Disable History" : "Enable History"}
@@ -99,13 +108,16 @@ export function HistoryActions() {
           showToast({ title: !isHistoryEnabled ? "Recording history" : "Stopped recording history" });
           $isHistoryEnabled.set(!isHistoryEnabled);
         }}
-        shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
+        shortcut={{
+          macOS: { modifiers: ["cmd", "shift"], key: "d" },
+          windows: { modifiers: ["ctrl", "shift"], key: "d" },
+        }}
       />
     </>
   );
 }
 
-export function CollectionActions({ children }: PropsWithChildren) {
+export function CollectionActions({ children }: { children?: JSX.Element | JSX.Element[] | null }) {
   const { push } = useNavigation();
   const { value: currentCollectionId } = useAtom($currentCollectionId);
   const { value: collections } = useAtom($collections);
@@ -161,30 +173,53 @@ export function CollectionActions({ children }: PropsWithChildren) {
   );
 }
 
-export function CopyVariableAction() {
+export function CopyVariableAction({
+  currentRequestPreActions,
+}: {
+  currentRequestPreActions?: Array<{ requestId: string; enabled: boolean }>;
+} = {}) {
   const resolvedVariables = resolveVariables();
   const { value: collections } = useAtom($collections);
   const { value: currentCollectionId } = useAtom($currentCollectionId);
 
   const currentCollection = collections.find((c) => c.id === currentCollectionId);
 
-  // Get all potential temp variables from response actions
+  // Get temp variable keys based on pre-request actions
   const tempVariableKeys = new Set<string>();
-  currentCollection?.requests.forEach((request) => {
-    request.responseActions?.forEach((action) => {
-      if (action.storage === "TEMPORARY") {
-        tempVariableKeys.add(action.variableKey);
+
+  if (currentRequestPreActions && currentRequestPreActions.length > 0) {
+    // Only show temp vars from requests that are in the pre-request chain
+    const preRequestIds = new Set(
+      currentRequestPreActions.filter((action) => action.enabled).map((action) => action.requestId),
+    );
+
+    currentCollection?.requests.forEach((request) => {
+      // Only include temp vars from requests that are pre-request actions
+      if (preRequestIds.has(request.id)) {
+        request.responseActions?.forEach((action) => {
+          if (action.storage === "TEMPORARY") {
+            tempVariableKeys.add(action.variableKey);
+          }
+        });
       }
     });
-  });
+  }
 
   const allKeys = [...Object.keys(resolvedVariables), ...Array.from(tempVariableKeys)];
 
   return (
-    <ActionPanel.Submenu title="Copy Variable" icon={Icon.Key} shortcut={{ modifiers: ["cmd", "shift"], key: "i" }}>
+    <ActionPanel.Submenu
+      title="Copy Variable"
+      icon={Icon.Key}
+      shortcut={{
+        macOS: { modifiers: ["cmd", "shift"], key: "i" },
+        windows: { modifiers: ["ctrl", "shift"], key: "i" },
+      }}
+    >
       {allKeys.length > 0 ? (
         allKeys.map((key) => {
           const isTemp = tempVariableKeys.has(key);
+
           return (
             <Action
               key={key}
@@ -219,6 +254,10 @@ export function NewRequestFromCurlAction() {
     <Action
       title="New Request from cURL"
       icon={Icon.Clipboard}
+      shortcut={{
+        macOS: { modifiers: ["cmd", "shift"], key: "u" },
+        windows: { modifiers: ["ctrl", "shift"], key: "u" },
+      }}
       onAction={async () => {
         if (!currentCollection) {
           await showToast({ style: Toast.Style.Failure, title: "No Collection Selected" });
@@ -250,9 +289,11 @@ export function NewRequestFromCurlAction() {
 export function OpenInEditorAction({
   responseBody,
   shortcut = Keyboard.Shortcut.Common.Open,
+  fileType = "json",
 }: {
   responseBody: string;
   shortcut?: Keyboard.Shortcut;
+  fileType?: string;
 }) {
   return (
     <Action
@@ -260,7 +301,7 @@ export function OpenInEditorAction({
       icon={Icon.Code}
       shortcut={shortcut}
       onAction={async () => {
-        const tempPath = path.join(os.tmpdir(), `response-${randomUUID()}.json`);
+        const tempPath = path.join(os.tmpdir(), `response-${randomUUID()}.${fileType}`);
         await fs.writeFile(tempPath, responseBody);
 
         // Get the editor name from your extension's preferences
@@ -288,7 +329,10 @@ export function SortRequestsMenu({
     <ActionPanel.Submenu
       title="Sort Requests"
       icon={Icon.ArrowUpCircle}
-      shortcut={{ modifiers: ["cmd", "shift"], key: "s" }}
+      shortcut={{
+        macOS: { modifiers: ["cmd", "shift"], key: "s" },
+        windows: { modifiers: ["ctrl", "shift"], key: "s" },
+      }}
     >
       <Action
         title="By Name (A-Z)"
@@ -320,6 +364,7 @@ export function SortRequestsMenu({
 }
 
 export function GlobalActions() {
+  const { push } = useNavigation();
   return (
     <ActionPanel.Section title="Global Actions">
       <EnvironmentActions />
@@ -327,7 +372,10 @@ export function GlobalActions() {
       <Action
         title="Backup All Data"
         icon={Icon.HardDrive}
-        shortcut={{ modifiers: ["cmd", "shift"], key: "b" }}
+        shortcut={{
+          macOS: { modifiers: ["cmd", "shift"], key: "b" },
+          windows: { modifiers: ["ctrl", "shift"], key: "b" },
+        }}
         onAction={async () => {
           const toast = await showToast({ style: Toast.Style.Animated, title: "Creating backup..." });
           try {
@@ -339,6 +387,43 @@ export function GlobalActions() {
             toast.style = Toast.Style.Failure;
             toast.title = "Backup Failed";
             toast.message = String(error);
+          }
+        }}
+      />
+      <Action
+        title="Import Environments from Clipboard"
+        icon={Icon.Download}
+        onAction={async () => {
+          try {
+            const clipboardText = await Clipboard.readText();
+            if (!clipboardText) {
+              throw new Error("Clipboard is empty.");
+            }
+            const data = JSON.parse(clipboardText);
+
+            // Validate the clipboard data
+            const environments = environmentsSchema.parse(data);
+
+            // Confirm before overwriting
+            if (
+              await confirmAlert({
+                title: "Import Environments?",
+                message: "This will replace all existing environments. Continue?",
+                primaryAction: { title: "Import", style: Alert.ActionStyle.Destructive },
+              })
+            ) {
+              await $environments.setAndFlush(environments);
+              await showToast({ title: "Environments Imported Successfully" });
+            }
+          } catch (error) {
+            if (error instanceof z.ZodError) {
+              push(<ErrorDetail error={error} />);
+            }
+            await showToast({
+              style: Toast.Style.Failure,
+              title: "Import Failed",
+              message: "Clipboard does not contain valid environments data.",
+            });
           }
         }}
       />
@@ -366,7 +451,10 @@ export function GlobalActions() {
         title="Help & Documentation"
         icon={Icon.QuestionMark}
         target={<HelpView />}
-        shortcut={{ modifiers: ["cmd"], key: "h" }}
+        shortcut={{
+          macOS: { modifiers: ["cmd"], key: "/" },
+          windows: { modifiers: ["ctrl"], key: "/" },
+        }}
       />
     </ActionPanel.Section>
   );
