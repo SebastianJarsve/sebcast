@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Form, Icon, Keyboard, showToast, Toast, useNavigation } from "@raycast/api";
+import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { useReducer, useState } from "react";
 import { NewRequest, Request, Method } from "~/types";
 import { $collections, $currentCollectionId, createRequest, updateRequest } from "~/store";

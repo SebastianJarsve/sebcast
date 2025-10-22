@@ -9,8 +9,7 @@ export function HelpView() {
   let helpContent: string;
   try {
     helpContent = fs.readFileSync(path.join(environment.assetsPath, "help.md"), "utf-8");
-    // ...
-  } catch (error) {
+  } catch {
     return <Detail markdown="# Help\nHelp documentation not found." />;
   }
 

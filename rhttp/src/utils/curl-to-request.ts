@@ -14,7 +14,7 @@ export function parseCurlToRequest(curl: string): NewRequest | null {
     // The URL is typically the last argument that doesn't start with a hyphen.
     // This regex finds all quoted strings or standalone words.
     const urlMatch = curl.match(/'(https?:\/\/[^']+|[^']+)'|"(https?:\/\/[^"]+|[^"]+)"|(\S+)/g);
-    const url = urlMatch?.find((u) => u.includes("http") || u.startsWith("'http"))?.replace(/['\"]/g, "") ?? "";
+    const url = urlMatch?.find((u) => u.includes("http") || u.startsWith("'http"))?.replace(/['"]/g, "") ?? "";
 
     // Find the method flag (-X or --request) and capture the next word.
     const methodMatch = curl.match(/-X\s*(\w+)|--request\s*(\w+)/);
