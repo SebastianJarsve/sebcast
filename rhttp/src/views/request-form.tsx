@@ -272,11 +272,11 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         </Form.Dropdown>
       )}
       {/* Conditional fields for Body, Params, etc. */}
-      {METHODS[dirtyRequest.method].bodyAllowed && (
+      {METHODS[dirtyRequest.method].bodyAllowed && dirtyRequest.bodyType !== "NONE" && (
         <Form.TextArea
           id="body"
           title="Body"
-          placeholder="Enter JSON body"
+          placeholder="Enter body"
           value={dirtyRequest.body}
           onChange={(value) => dispatch({ type: "SET_FIELD", payload: { field: "body", value } })}
         />
