@@ -38,7 +38,7 @@ export function EnvironmentForm({ environmentId }: EnvironmentFormProps) {
     );
 
     if (isNameTaken) {
-      showToast({
+      void showToast({
         style: Toast.Style.Failure,
         title: "Name Already Taken",
         message: `An environment named "${newName}" already exists.`,
@@ -49,14 +49,14 @@ export function EnvironmentForm({ environmentId }: EnvironmentFormProps) {
     try {
       if (environmentId) {
         await updateEnvironment(environmentId, { name: newName });
-        showToast({ title: "Environment Updated" });
+        void showToast({ title: "Environment Updated" });
       } else {
         await createEnvironment(newName);
-        showToast({ title: "Environment Created" });
+        void showToast({ title: "Environment Created" });
       }
       pop();
     } catch (error) {
-      showToast({ style: Toast.Style.Failure, title: "Failed to save environment", message: String(error) });
+      void showToast({ style: Toast.Style.Failure, title: "Failed to save environment", message: String(error) });
     }
   }
 

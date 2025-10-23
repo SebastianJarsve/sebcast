@@ -10,7 +10,7 @@ export const $environments = persistentAtom([], {
   schema: environmentsSchema,
   onCorruption: (error) => {
     console.error(error);
-    showToast({
+    void showToast({
       style: Toast.Style.Failure,
       title: "Failed to load environments",
       message: "Data was corrupted. A backup was created and defaults have been restored.",
@@ -39,8 +39,13 @@ export async function initializeDefaultEnvironment() {
       name: "default",
       variables: {},
     };
-    $environments.set([defaultEnv]);
-    $currentEnvironmentId.set(defaultEnv.id); // Automatically select it
+    try {
+      await $environments.setAndFlush([defaultEnv]);
+      await $currentEnvironmentId.setAndFlush(defaultEnv.id);
+    } catch (error) {
+      console.error("Failed to initialize default environment:", error);
+      throw error;
+    }
   }
 }
 
@@ -86,7 +91,7 @@ export async function updateEnvironment(environmentId: string, data: Partial<Env
 export async function deleteEnvironment(environmentId: string) {
   const updated = $environments.get().filter((env) => env.id !== environmentId);
   environmentsSchema.parse(updated);
-  $environments.setAndFlush(updated);
+  await $environments.setAndFlush(updated);
 
   // If the deleted environment was the active one, clear the active selection.
   if ($currentEnvironmentId.get() === environmentId) {
