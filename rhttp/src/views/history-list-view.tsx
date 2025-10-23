@@ -59,8 +59,16 @@ function CommonActions() {
             primaryAction: { title: "Clear History", style: Alert.ActionStyle.Destructive },
           })
         ) {
-          clearHistory();
-          showToast({ title: "History Cleared" });
+          try {
+            await clearHistory();
+            void showToast({ title: "History Cleared" });
+          } catch (error) {
+            void showToast({
+              style: Toast.Style.Failure,
+              title: "Operation Failed",
+              message: error instanceof Error ? error.message : "Unknown error",
+            });
+          }
         }
       }}
     />
@@ -151,7 +159,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                       );
 
                       if (!sourceCollection) {
-                        showToast({
+                        void showToast({
                           style: Toast.Style.Failure,
                           title: "Failed to Re-run",
                           message: "Original collection could not be found.",
@@ -183,7 +191,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                       try {
                         // 2. Re-run the request using the snapshot and the original collection
                         const response = await runRequest(entry.requestSnapshot, sourceCollection);
-                        toast.hide();
+                        void toast.hide();
 
                         const responseData: ResponseData = {
                           requestMethod: entry.requestSnapshot.method,
@@ -203,7 +211,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                         );
                       } catch (error) {
                         // 3. Handle errors just like our other run actions
-                        toast.hide();
+                        void toast.hide();
                         if (axios.isAxiosError(error) && error.response) {
                           push(
                             <ResponseView
@@ -220,7 +228,7 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                             />,
                           );
                         } else if (error instanceof z.ZodError) {
-                          toast.hide();
+                          void toast.hide();
                           // This is a validation error from our schema -> Show the ErrorDetail view
                           push(<ErrorDetail error={error} />);
                         } else if (axios.isAxiosError(error) && error.code === "ENOTFOUND") {
@@ -251,8 +259,16 @@ export function HistoryView({ filterByRequestId }: HistoryViewProps) {
                           primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
                         })
                       ) {
-                        deleteHistoryEntry(entry.id);
-                        showToast({ style: Toast.Style.Success, title: "Entry Deleted" });
+                        try {
+                          await deleteHistoryEntry(entry.id);
+                          void showToast({ style: Toast.Style.Success, title: "Entry Deleted" });
+                        } catch (error) {
+                          void showToast({
+                            style: Toast.Style.Failure,
+                            title: "Operation Failed",
+                            message: error instanceof Error ? error.message : "Unknown error",
+                          });
+                        }
                       }
                     }}
                   />

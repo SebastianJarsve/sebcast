@@ -156,7 +156,7 @@ function useStoresReady(atoms: Array<{ ready: Promise<void> }>) {
       await Promise.all(atoms.map((atom) => atom.ready));
       setIsReady(true);
     }
-    checkReady();
+    void checkReady();
   }, []); // The empty array ensures this runs only once
 
   return isReady;
@@ -188,8 +188,25 @@ async function initializeApp() {
 
   // Now, proceed with initialization. This will create defaults for any
   // stores that failed to load and are currently empty.
-  await initializeDefaultCollection();
-  await initializeDefaultEnvironment();
+  try {
+    await initializeDefaultCollection();
+  } catch {
+    void showToast({
+      style: Toast.Style.Failure,
+      title: "Failed to Initialize",
+      message: "Could not create default collection",
+    });
+  }
+
+  try {
+    await initializeDefaultEnvironment();
+  } catch {
+    void showToast({
+      style: Toast.Style.Failure,
+      title: "Failed to Initialize",
+      message: "Could not create default environment",
+    });
+  }
 }
 
 interface RequestListItemProps {
@@ -307,7 +324,7 @@ function RequestListItem({ request, currentCollection, collections }: RequestLis
 
 export default function RequestList() {
   useEffect(() => {
-    initializeApp();
+    void initializeApp().catch(console.error);
   }, []);
 
   const isReady = useStoresReady([

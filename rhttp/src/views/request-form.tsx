@@ -105,7 +105,13 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
 
   async function handleRun() {
     if (!currentCollection) return;
-    run(dirtyRequest, currentCollection);
+    void run(dirtyRequest, currentCollection).catch((error) => {
+      void showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to run request",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    });
   }
 
   async function handleSave() {
@@ -114,10 +120,10 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
     try {
       if (initialRequest.id) {
         await updateRequest(collectionId, dirtyRequest.id, dirtyRequest);
-        showToast({ title: "Request Updated" });
+        void showToast({ title: "Request Updated" });
       } else {
         await createRequest(collectionId, dirtyRequest as NewRequest);
-        showToast({ title: "Request Created" });
+        void showToast({ title: "Request Created" });
         pop(); // ✨ Close the form after creating
       }
     } catch (error) {
@@ -127,7 +133,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
         push(<ErrorDetail error={error} />);
       } else {
         // Handle other unexpected errors.
-        showToast({
+        void showToast({
           style: Toast.Style.Failure,
           title: "An unknown error occurred",
         });
@@ -176,7 +182,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                   if (activeHeaderIndex === null) return;
                   dispatch({ type: "REMOVE_HEADER", payload: { index: activeHeaderIndex } });
                   setActiveHeaderIndex(null);
-                  showToast({ style: Toast.Style.Success, title: "Header Removed" });
+                  void showToast({ style: Toast.Style.Success, title: "Header Removed" });
                 }}
                 shortcut={{ macOS: { modifiers: ["ctrl"], key: "h" }, windows: { modifiers: ["alt"], key: "h" } }}
               />
@@ -194,7 +200,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                 style={Action.Style.Destructive}
                 onAction={() => {
                   dispatch({ type: "REMOVE_RESPONSE_ACTION", payload: { index: activeActionIndex } });
-                  showToast({ style: Toast.Style.Success, title: "Action Removed" });
+                  void showToast({ style: Toast.Style.Success, title: "Action Removed" });
                 }}
                 shortcut={{ macOS: { modifiers: ["ctrl"], key: "r" }, windows: { modifiers: ["ctrl"], key: "r" } }}
               />
@@ -213,7 +219,7 @@ export function RequestForm({ collectionId, request: initialRequest }: RequestFo
                 onAction={() => {
                   dispatch({ type: "REMOVE_PRE_REQUEST_ACTION", payload: { index: activePreRequestIndex } });
                   setActivePreRequestIndex(null);
-                  showToast({ style: Toast.Style.Success, title: "Pre-Request Action Removed" });
+                  void showToast({ style: Toast.Style.Success, title: "Pre-Request Action Removed" });
                 }}
                 shortcut={{ macOS: { modifiers: ["ctrl"], key: "p" }, windows: { modifiers: ["ctrl"], key: "p" } }}
               />

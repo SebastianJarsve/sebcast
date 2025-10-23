@@ -32,8 +32,13 @@ export async function initializeDefaultCollection() {
   await $collections.ready;
   if ($collections.get().length === 0) {
     const defaultCollection = createDefaultCollectionObject();
-    await $collections.setAndFlush([defaultCollection]);
-    await $currentCollectionId.setAndFlush(defaultCollection.id);
+    try {
+      await $collections.setAndFlush([defaultCollection]);
+      await $currentCollectionId.setAndFlush(defaultCollection.id);
+    } catch (error) {
+      console.error("Failed to initialize default collection:", error);
+      throw error; // Let caller handle
+    }
   }
 }
 // initializeDefaultCollection();

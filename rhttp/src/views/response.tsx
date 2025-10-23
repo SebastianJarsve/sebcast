@@ -141,7 +141,7 @@ export function ResponseView({ requestSnapshot, sourceRequestId, response }: Res
             icon={Icon.Clock}
             onAction={async () => {
               await addHistoryEntry(requestSnapshot, response, sourceRequestId);
-              showToast({ title: "Saved to History" });
+              void showToast({ title: "Saved to History" });
             }}
           />
         </ActionPanel>

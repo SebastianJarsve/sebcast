@@ -1,5 +1,6 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
+  "type": "module",
   "name": "rhttp",
   "title": "rhttp",
   "version": "1.0.0",

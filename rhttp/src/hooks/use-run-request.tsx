@@ -18,7 +18,7 @@ export function useRunRequest() {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsLoading(false);
-      showToast({
+      void showToast({
         style: Toast.Style.Success,
         title: "Request Cancelled",
       });
@@ -113,7 +113,7 @@ export function useRunRequest() {
 
       const response = await runRequest(request, collection, temporaryVariables, abortControllerRef.current.signal);
 
-      toast.hide();
+      void toast.hide();
       if (!response) throw response;
       push(
         <ResponseView
@@ -133,7 +133,7 @@ export function useRunRequest() {
       // Check if it's an Axios error with a response from the server
       if (axios.isAxiosError(error) && error.response) {
         // This is an API error (e.g., 404, 500). Show the detailed view.
-        toast.hide();
+        void toast.hide();
         push(
           <ResponseView
             requestSnapshot={request}
@@ -148,7 +148,7 @@ export function useRunRequest() {
           />,
         );
       } else if (error instanceof z.ZodError) {
-        toast.hide();
+        void toast.hide();
         push(<ErrorDetail error={error} />);
       } else if (axios.isAxiosError(error) && error.code === "ENOTFOUND") {
         // DNS error

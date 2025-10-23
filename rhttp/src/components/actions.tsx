@@ -62,7 +62,13 @@ export function SelectEnvironmentMenu() {
           icon={currentEnvironment?.id === env.id ? { source: Icon.Checkmark, tintColor: Color.Green } : Icon.Dot}
           title={env.name}
           onAction={() => {
-            handleSelectEnvironment(env.id);
+            void handleSelectEnvironment(env.id).catch((error) => {
+              void showToast({
+                style: Toast.Style.Failure,
+                title: "Operation failed",
+                message: error instanceof Error ? error.message : "Unknown error",
+              });
+            });
           }}
         />
       ))}
@@ -105,7 +111,7 @@ export function HistoryActions() {
         title={isHistoryEnabled ? "Disable History" : "Enable History"}
         icon={isHistoryEnabled ? Icon.Stop : Icon.Clock}
         onAction={() => {
-          showToast({ title: !isHistoryEnabled ? "Recording history" : "Stopped recording history" });
+          void showToast({ title: !isHistoryEnabled ? "Recording history" : "Stopped recording history" });
           $isHistoryEnabled.set(!isHistoryEnabled);
         }}
         shortcut={{

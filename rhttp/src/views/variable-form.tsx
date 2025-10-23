@@ -21,7 +21,7 @@ export function VariableForm({ environmentId, variableKey }: VariableFormProps) 
     // The key is either the one from the form (new) or the one passed in via props (editing)
     const keyToSave = (variableKey || values.key || "").trim();
     if (!keyToSave) {
-      showToast({ style: Toast.Style.Failure, title: "Variable key cannot be empty" });
+      void showToast({ style: Toast.Style.Failure, title: "Variable key cannot be empty" });
       return;
     }
 
@@ -42,7 +42,7 @@ export function VariableForm({ environmentId, variableKey }: VariableFormProps) 
     };
 
     await saveVariable(environmentId, keyToSave, variableData);
-    showToast({ title: "Variable Saved" });
+    void showToast({ title: "Variable Saved" });
     pop();
   }
   return (

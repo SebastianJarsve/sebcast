@@ -41,11 +41,27 @@ export function CollectionForm({ collectionId }: CollectionFormProps) {
     try {
       const collectionData = { ...values, headers };
       if (collectionId) {
-        updateCollection(collectionId, collectionData);
-        showToast({ title: "Collection Updated" });
+        try {
+          await updateCollection(collectionId, collectionData);
+          void showToast({ title: "Collection Updated" });
+        } catch (error) {
+          void showToast({
+            style: Toast.Style.Failure,
+            title: "Operation Failed",
+            message: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
       } else {
-        createCollection(collectionData as NewCollection);
-        showToast({ title: "Collection Created" });
+        try {
+          await createCollection(collectionData as NewCollection);
+          void showToast({ title: "Collection Created" });
+        } catch (error) {
+          void showToast({
+            style: Toast.Style.Failure,
+            title: "Operation Failed",
+            message: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
       }
       pop();
     } catch (error) {
@@ -55,7 +71,7 @@ export function CollectionForm({ collectionId }: CollectionFormProps) {
         push(<ErrorDetail error={error} />);
       } else {
         // Handle other unexpected errors.
-        showToast({
+        void showToast({
           style: Toast.Style.Failure,
           title: "An unknown error occurred",
         });
@@ -94,7 +110,7 @@ export function CollectionForm({ collectionId }: CollectionFormProps) {
                 if (activeIndex === null) return;
                 setHeaders(headers.filter((_, i) => i !== activeIndex));
                 setActiveIndex(null);
-                showToast({ style: Toast.Style.Success, title: "Header Removed" });
+                void showToast({ style: Toast.Style.Success, title: "Header Removed" });
               }}
               shortcut={{
                 macOS: { modifiers: ["ctrl"], key: "h" },
